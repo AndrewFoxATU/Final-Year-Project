@@ -1,0 +1,23 @@
+# Author: Andrew Fox
+
+
+# === GUI & Visualization ===
+PyQt6==6.7.0 # PyQt6 provides modern cross-platform GUI components.
+pyqtgraph==0.13.4 # pyqtgraph offers smooth real-time graph plotting.
+
+
+# === System Monitoring ===
+psutil==6.0.0 # psutil gathers system stats: CPU, memory, disk, network, etc.
+GPUtil==1.4.0 # GPUtil monitors GPU load and memory (NVIDIA GPUs only).
+pywin32==307 # pywin32 provides Windows-specific system calls and process control.
+
+
+# === Utility & Configuration ===
+python-dotenv==1.0.1 # python-dotenv enables configuration via .env files.
+loguru==0.7.2 # loguru provides elegant, structured logging with rotation.
+
+
+# === Data Handling (Lightweight) === 
+numpy==2.1.2 # numpy for numeric calculations and array handling.
+
+# - To install:  pip install -r requirements.txt
