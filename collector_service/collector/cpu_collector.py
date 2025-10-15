@@ -5,9 +5,7 @@ import psutil
 import datetime
 
 class CPUCollector:
-    """
-    Collects raw CPU data suitable for logging and ML analysis.
-    """
+     # Collects raw CPU data suitable for logging and ML analysis.
 
     @staticmethod
     def get_cpu_data():
