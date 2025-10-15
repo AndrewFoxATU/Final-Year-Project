@@ -10,8 +10,12 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QFrame, QGridLayout
 )
 from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QFontDatabase, QFont
 import pyqtgraph as pg
+
+
+from collector_service.collector.cpu_collector import CPUCollector
 
 
 # -----------------------------
@@ -48,6 +52,12 @@ class DashboardWindow(QMainWindow):
         self.set_active_button(self.live_button)
         self.content_widgets["Live System Monitoring"].show()
 
+        # Graph refersh rate
+        self.graph_refersh_rate = 1000 # interval in milliseconds
+        self.update_timer = QTimer()
+        self.update_timer.timeout.connect(self.update_cpu_data)
+        self.update_timer.start(self.graph_refersh_rate)  
+
     # -----------------------------
     # Top Bar
     # -----------------------------
@@ -77,6 +87,30 @@ class DashboardWindow(QMainWindow):
         self.content_layout = QVBoxLayout()
         self.content_frame.setLayout(self.content_layout)
         self.main_layout.addWidget(self.content_frame, stretch=1)
+
+
+    def update_cpu_data(self):
+        data = CPUCollector.get_cpu_data()
+
+        # Update labels
+        cpu_frame = self.section_frames["CPU"][0]
+        labels = cpu_frame.labels
+        labels["Usage"].setText(f"Usage: {data['cpu_percent_total']:.1f}%")
+        labels["Clock"].setText(
+            f"Clock: {data['cpu_freq']['current']:.1f} MHz" if data['cpu_freq'] else "Clock: N/A"
+        )
+        labels["Temp"].setText("Temp: N/A")
+
+        # Update the rolling buffer for the graph
+        cpu_frame.data.append(data['cpu_percent_total'])
+        if len(cpu_frame.data) > 50:  # keep only last 50 points
+            cpu_frame.data.pop(0)
+
+        # Update the graph
+        cpu_frame.curve.setData(cpu_frame.data)
+
+
+
 
     # -----------------------------
     # Create Sections
