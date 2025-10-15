@@ -8,4 +8,4 @@ code .
 python -m venv venv
 
 ### Activate it
-source venv/bin/activate
+source venv/Scripts/activate
