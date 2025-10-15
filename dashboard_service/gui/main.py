@@ -7,10 +7,12 @@
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFrame
+    QPushButton, QLabel, QFrame, QGridLayout
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFontDatabase, QFont
+import pyqtgraph as pg
+
 
 # -----------------------------
 # Main Window
@@ -27,45 +29,27 @@ class DashboardWindow(QMainWindow):
         self.main_layout = QVBoxLayout()
         self.central_widget.setLayout(self.main_layout)
 
-        # -----------------------------
-        # Top Bar Section
-        # -----------------------------
+        # Top Bar
         self.top_bar()
 
-        # -----------------------------
-        # Content Area Section
-        # -----------------------------
+        # Content Area
         self.content_area()
 
-        # -----------------------------
-        # Initialize content widgets (placeholders)
-        # -----------------------------
-        self.content_widgets = {
-            "Live System Monitoring": QLabel("Live System Monitoring Panel"),
-            "Analytics": QLabel("Analytics Panel"),
-            "RAM Cleaner": QLabel("RAM Cleaner Panel"),
-            "Performance Mode": QLabel("Performance Mode Panel")
-        }
+        # Initialize Sections (CPU, GPU, RAM, Storage)
+        self.create_sections()
 
-        # Add all widgets to layout and hide initially
-        for widget in self.content_widgets.values():
-            widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.content_layout.addWidget(widget)
-            widget.hide()
+        # Arrange Sections in 2x2 Grid
+        self.arrange_sections()
 
-        # -----------------------------
-        # Bottom Navigation Section
-        # -----------------------------
+        # Bottom Navigation Bar
         self.bottom_bar()
 
-        # -----------------------------
-        # Set default mode: Live Monitoring
-        # -----------------------------
+        # Default Mode: Live Monitoring
         self.set_active_button(self.live_button)
         self.content_widgets["Live System Monitoring"].show()
 
     # -----------------------------
-    # Top Bar Section
+    # Top Bar
     # -----------------------------
     def top_bar(self):
         self.top_bar = QFrame()
@@ -73,19 +57,20 @@ class DashboardWindow(QMainWindow):
         self.top_bar.setLayout(self.top_layout)
         self.main_layout.addWidget(self.top_bar)
 
-        # Left: Title
-        self.top_layout.addWidget(QLabel("Smart Dashboard"), stretch=1)
+        title = QLabel("Smart Dashboard")
+        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        self.top_layout.addWidget(title, stretch=1)
 
-        # Right: Buttons
         self.alerts_button = QPushButton("Alerts")
         self.settings_button = QPushButton("Settings")
+
         for button in [self.alerts_button, self.settings_button]:
             button.setObjectName("topButton")
             button.setFixedSize(80, 40)
             self.top_layout.addWidget(button)
 
     # -----------------------------
-    # Content Area Section
+    # Content Area
     # -----------------------------
     def content_area(self):
         self.content_frame = QFrame()
@@ -94,7 +79,116 @@ class DashboardWindow(QMainWindow):
         self.main_layout.addWidget(self.content_frame, stretch=1)
 
     # -----------------------------
-    # Bottom Navigation Section
+    # Create Sections
+    # -----------------------------
+    def create_sections(self):
+        # Define what info each section displays
+        self.sections = {
+            "CPU": {"fields": ["Usage", "Clock", "Temp"]},
+            "GPU": {"fields": ["Usage", "Clock", "Temp"]},
+            "RAM": {"fields": ["Usage"]},
+            "Storage": {"fields": ["Usage"]}
+        }
+
+        self.section_frames = {}
+        for name, config in self.sections.items():
+            frame, curve, data = self.create_section(name, config["fields"])
+            self.section_frames[name] = (frame, curve, data)
+
+    # -----------------------------
+    # Create Section (Dynamic)
+    # -----------------------------
+    def create_section(self, name, fields):
+        layout = QHBoxLayout()
+
+        # Info layout (labels)
+        info_layout = QVBoxLayout()
+        section_title = QLabel(f"<b>{name}</b>")
+        section_title.setAlignment(Qt.AlignmentFlag.AlignRight)
+        info_layout.addWidget(section_title)
+
+        labels = {}
+        for field in fields:
+            if field == "Usage":
+                label = QLabel("Usage: 0%")
+            elif field == "Clock":
+                label = QLabel("Clock: 0 MHz")
+            elif field == "Temp":
+                label = QLabel("Temp: 0°C")
+            else:
+                label = QLabel(f"{field}: 0")
+
+            # Align labels to the right
+            label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            info_layout.addWidget(label)
+            labels[field] = label
+
+        info_layout.addStretch()
+
+        # Graph for data visualization
+        plot_widget = pg.PlotWidget()
+        plot_widget.setBackground('#2a2a2a')
+
+        # Hide axis numbers and labels
+        plot_widget.getAxis('bottom').setTicks([])
+        plot_widget.getAxis('left').setTicks([])
+        plot_widget.getAxis('bottom').setStyle(showValues=False)
+        plot_widget.getAxis('left').setStyle(showValues=False)
+        plot_widget.setLabel('left', '')
+        plot_widget.setLabel('bottom', '')
+
+        # Add grid for visual consistency
+        plot_widget.showGrid(x=True, y=True, alpha=0.3)
+
+        # Allow graph to scale with window
+        from PyQt6.QtWidgets import QSizePolicy
+        plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        curve = plot_widget.plot([], [], pen=pg.mkPen(color='r', width=2))
+
+        # Layout balance: keep text narrow, graph wide
+        layout.addLayout(info_layout, stretch=1)
+        layout.addWidget(plot_widget, stretch=4)
+
+        frame = QFrame()
+        frame.setLayout(layout)
+        frame.curve = curve
+        frame.data = [0] * 50
+        frame.labels = labels
+
+        return frame, curve, frame.data
+
+    # -----------------------------
+    # Arrange Sections in Grid
+    # -----------------------------
+    def arrange_sections(self):
+        grid_widget = QWidget()
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(20)
+        grid_widget.setLayout(grid_layout)
+
+        names = list(self.section_frames.keys())
+
+        grid_layout.addWidget(self.section_frames[names[0]][0], 0, 0)
+        grid_layout.addWidget(self.section_frames[names[1]][0], 0, 1)
+        grid_layout.addWidget(self.section_frames[names[2]][0], 1, 0)
+        grid_layout.addWidget(self.section_frames[names[3]][0], 1, 1)
+
+        self.content_widgets = {
+            "Live System Monitoring": grid_widget,
+            "Analytics": QLabel("Analytics Panel"),
+            "RAM Cleaner": QLabel("RAM Cleaner Panel"),
+            "Performance Mode": QLabel("Performance Mode Panel")
+        }
+
+        for widget in self.content_widgets.values():
+            if isinstance(widget, QLabel):
+                widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.content_layout.addWidget(widget)
+            widget.hide()
+
+    # -----------------------------
+    # Bottom Navigation Bar
     # -----------------------------
     def bottom_bar(self):
         self.bottom_bar = QFrame()
@@ -102,7 +196,6 @@ class DashboardWindow(QMainWindow):
         self.bottom_bar.setLayout(self.bottom_layout)
         self.main_layout.addWidget(self.bottom_bar)
 
-        # Buttons
         self.live_button = QPushButton("Live System Monitoring")
         self.analytics_button = QPushButton("Analytics")
         self.ram_button = QPushButton("RAM Cleaner")
@@ -125,13 +218,10 @@ class DashboardWindow(QMainWindow):
     # Mode Switching
     # -----------------------------
     def switch_mode(self, mode_name):
-        # Hide all panels first
-        self.hide_all_content_widgets()
-
-        # Show the selected panel
+        for widget in self.content_widgets.values():
+            widget.hide()
         self.content_widgets[mode_name].show()
 
-        # Update active button
         mapping = {
             "Live System Monitoring": self.live_button,
             "Analytics": self.analytics_button,
@@ -149,15 +239,9 @@ class DashboardWindow(QMainWindow):
             button.style().unpolish(button)
             button.style().polish(button)
 
-    # -----------------------------
-    # Hide all content widgets
-    # -----------------------------
-    def hide_all_content_widgets(self):
-        for widget in self.content_widgets.values():
-            widget.hide()
 
 # -----------------------------
-# Main
+# Main Entry Point
 # -----------------------------
 if __name__ == "__main__":
     app = QApplication(sys.argv)
