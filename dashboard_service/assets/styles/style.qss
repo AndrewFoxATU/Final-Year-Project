@@ -1,0 +1,10 @@
+/* Section frames (CPU, GPU, RAM, Storage) */
+#sectionFrame {
+    border: 2px solid grey;       /* Grey outline */
+    border-radius: 15px;          /* Rounded edges */
+    padding: 10px;
+}
+
+#sectionFrame:hover {
+    border: 4px solid grey;       /* Grey outline */
+}
