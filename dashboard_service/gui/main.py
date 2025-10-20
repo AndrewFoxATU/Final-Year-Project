@@ -7,7 +7,8 @@
 import sys
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFrame, QGridLayout
+    QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
+    QComboBox, QSpinBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtCore import QTimer
@@ -71,9 +72,14 @@ class DashboardWindow(QMainWindow):
         title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         self.top_layout.addWidget(title, stretch=1)
 
-        self.alerts_button = QPushButton("Alerts")
-        self.settings_button = QPushButton("Settings")
 
+        # Alerts dropdown
+        self.alerts_button = QPushButton("Alerts")
+
+        # Settings button
+        self.settings_button = QPushButton("Settings")
+        self.settings_button.clicked.connect(self.open_settings)
+        
         for button in [self.alerts_button, self.settings_button]:
             button.setObjectName("topButton")
             button.setFixedSize(80, 40)
@@ -96,9 +102,7 @@ class DashboardWindow(QMainWindow):
         cpu_frame = self.section_frames["CPU"][0]
         labels = cpu_frame.labels
         labels["Usage"].setText(f"Usage: {data['cpu_percent_total']:.1f}%")
-        labels["Clock"].setText(
-            f"Clock: {data['cpu_freq']['current']:.1f} MHz" if data['cpu_freq'] else "Clock: N/A"
-        )
+        labels["Clock"].setText(f"Clock: {data['cpu_freq']['current']:.1f} MHz" if data['cpu_freq'] else "Clock: N/A")
         labels["Temp"].setText("Temp: N/A")
 
         # Update the rolling buffer for the graph
@@ -161,7 +165,13 @@ class DashboardWindow(QMainWindow):
 
         # Graph for data visualization
         plot_widget = pg.PlotWidget()
-        plot_widget.setBackground('#2a2a2a')
+        plot_widget.setBackground(None)
+        plot_widget.setYRange(0, 100)
+
+        # Disable all interactions
+        plot_widget.setMouseEnabled(x=False, y=False)
+        plot_widget.setMenuEnabled(False)
+        plot_widget.setInteractive(False)
 
         # Hide axis numbers and labels
         plot_widget.getAxis('bottom').setTicks([])
@@ -171,11 +181,11 @@ class DashboardWindow(QMainWindow):
         plot_widget.setLabel('left', '')
         plot_widget.setLabel('bottom', '')
 
-        # Add grid for visual consistency
-        plot_widget.showGrid(x=True, y=True, alpha=0.3)
+        plot_widget.showGrid(x=False, y=False)
 
-        # Allow graph to scale with window
-        from PyQt6.QtWidgets import QSizePolicy
+        plot_widget.getAxis('bottom').setPen(None)
+        plot_widget.getAxis('left').setPen(None)
+        
         plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         curve = plot_widget.plot([], [], pen=pg.mkPen(color='r', width=2))
@@ -189,6 +199,7 @@ class DashboardWindow(QMainWindow):
         frame.curve = curve
         frame.data = [0] * 50
         frame.labels = labels
+        frame.setObjectName("sectionFrame")
 
         return frame, curve, frame.data
 
@@ -230,6 +241,7 @@ class DashboardWindow(QMainWindow):
         self.bottom_bar.setLayout(self.bottom_layout)
         self.main_layout.addWidget(self.bottom_bar)
 
+        # Buttons
         self.live_button = QPushButton("Live System Monitoring")
         self.analytics_button = QPushButton("Analytics")
         self.ram_button = QPushButton("RAM Cleaner")
@@ -272,6 +284,58 @@ class DashboardWindow(QMainWindow):
             button.setProperty("active", button == active_button)
             button.style().unpolish(button)
             button.style().polish(button)
+
+    # -----------------------------
+    # Open settings
+    # -----------------------------
+    def open_settings(self):
+        self.settings_window = SettingsWindow(parent=self)
+        self.settings_window.exec()  # modal window
+
+
+
+# -----------------------------
+# Settings
+# -----------------------------
+class SettingsWindow(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setFixedSize(200, 100)
+        self.parent = parent  # reference to main dashboard
+
+        layout = QVBoxLayout()
+
+        # ---------------------------
+        # Graph refresh rate
+        # ---------------------------
+        layout.addWidget(QLabel("Graph Refresh Rate (ms):"))
+        self.refresh_spin = QSpinBox()
+        self.refresh_spin.setRange(100, 10000)
+        self.refresh_spin.setSingleStep(100)
+        self.refresh_spin.setValue(parent.graph_refersh_rate)
+        layout.addWidget(self.refresh_spin)
+
+        # ---------------------------
+        # Buttons
+        # ---------------------------
+        button_layout = QHBoxLayout()
+        self.save_button = QPushButton("Save")
+        button_layout.addWidget(self.save_button)
+        layout.addLayout(button_layout)
+
+        self.setLayout(layout)
+
+        # Connect buttons
+        self.save_button.clicked.connect(self.save_settings)
+
+    def save_settings(self):
+
+        # Update graph refresh rate
+        self.parent.graph_refersh_rate = self.refresh_spin.value()
+        self.parent.update_timer.setInterval(self.parent.graph_refersh_rate)
+
+        self.close()
 
 
 # -----------------------------
