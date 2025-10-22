@@ -5,14 +5,14 @@
 # Imports
 # -----------------------------
 import sys
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
     QComboBox, QSpinBox
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QFontDatabase, QFont
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFontDatabase, QFont, QCursor
 import pyqtgraph as pg
 
 
@@ -53,11 +53,16 @@ class DashboardWindow(QMainWindow):
         self.set_active_button(self.live_button)
         self.content_widgets["Live System Monitoring"].show()
 
-        # Graph refersh rate
-        self.graph_refersh_rate = 1000 # interval in milliseconds
+        # Graph refresh rate
+        self.graph_refresh_rate = 1000 # interval in milliseconds
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_cpu_data)
-        self.update_timer.start(self.graph_refersh_rate)  
+        self.update_timer.start(self.graph_refresh_rate)
+
+        # Hover timer - updates hover visuals frequently
+        self.hover_timer = QTimer()
+        self.hover_timer.timeout.connect(self.update_hover)
+        self.hover_timer.start(50)
 
     # -----------------------------
     # Top Bar
@@ -107,14 +112,16 @@ class DashboardWindow(QMainWindow):
 
         # Update the rolling buffer for the graph
         cpu_frame.data.append(data['cpu_percent_total'])
-        if len(cpu_frame.data) > 50:  # keep only last 50 points
+        cpu_frame.timestamps.append(datetime.now().strftime("%H:%M:%S"))
+        if len(cpu_frame.data) > 50: # Keep only last 50 points
             cpu_frame.data.pop(0)
+            cpu_frame.timestamps.pop(0)
 
-        # Update the graph
-        cpu_frame.curve.setData(cpu_frame.data)
-
-
-
+        # Update the graph with explicit x coords
+        x = list(range(len(cpu_frame.data)))
+        cpu_frame.curve.setData(x, cpu_frame.data)
+        # keep view stable to 0..49 so mapping from mouse to index is stable
+        cpu_frame.plot_widget.plotItem.setXRange(0, 49, padding=0)
 
     # -----------------------------
     # Create Sections
@@ -132,6 +139,85 @@ class DashboardWindow(QMainWindow):
         for name, config in self.sections.items():
             frame, curve, data = self.create_section(name, config["fields"])
             self.section_frames[name] = (frame, curve, data)
+
+    # -----------------------------
+    # Hover update (runs on timer)
+    # -----------------------------
+    def update_hover(self):
+        # Iterate sections and update hover visuals if mouse over that plot
+        for name, (frame, curve, data) in self.section_frames.items():
+            plot_widget = frame.plot_widget
+            hover_dot = frame.hover_dot
+            hover_label = frame.hover_label
+
+            # If plot not visible (e.g., hidden by other panels), skip
+            if not plot_widget.isVisible():
+                hover_label.setVisible(False)
+                hover_dot.setData([], [])
+                continue
+
+            # If mouse not over this plot, hide visuals
+            if not plot_widget.underMouse():
+                hover_label.setVisible(False)
+                hover_dot.setData([], [])
+                continue
+
+            # Map cursor to plot coordinates
+            view_box = plot_widget.getViewBox()
+            mouse_scene = plot_widget.mapToScene(plot_widget.mapFromGlobal(QCursor.pos()))
+            try:
+                mouse_point = view_box.mapSceneToView(mouse_scene)
+            except Exception:
+                hover_label.setVisible(False)
+                hover_dot.setData([], [])
+                continue
+
+            x_val = mouse_point.x()
+
+            # Get curve data
+            curve_data = curve.getData()
+            if not curve_data or len(curve_data[0]) == 0:
+                hover_label.setVisible(False)
+                hover_dot.setData([], [])
+                continue
+
+            x_curve, y_curve = curve_data
+
+            # Find nearest index safely
+            try:
+                # x_curve might be numpy arrays or lists
+                nearest_idx = min(range(len(x_curve)), key=lambda i: abs(x_curve[i] - x_val))
+            except Exception:
+                hover_label.setVisible(False)
+                hover_dot.setData([], [])
+                continue
+
+            y_val = y_curve[nearest_idx]
+
+            # Update the scatter dot
+            hover_dot.setData([x_curve[nearest_idx]], [y_val])
+
+            # Prepare label text (value + timestamp if available)
+            ts_text = frame.timestamps[nearest_idx] if hasattr(frame, "timestamps") and len(frame.timestamps) > nearest_idx else ""
+            label_text = f"{y_val:.1f}%"
+            if ts_text:
+                label_text += f"  @ {ts_text}"
+
+            # Position the label near the dot (convert to widget coords)
+            dot_scene = view_box.mapViewToScene(pg.Point(x_curve[nearest_idx], y_val))
+            dot_widget = plot_widget.mapFromScene(dot_scene)
+
+            hover_label.setText(label_text)
+            hover_label.adjustSize()
+            w, h = hover_label.width(), hover_label.height()
+
+            # Place label to the right unless it would go off the widget, then place left
+            x_pos = dot_widget.x() + 10
+            if dot_widget.x() + w + 20 > plot_widget.width():
+                x_pos = dot_widget.x() - w - 10
+            y_pos = dot_widget.y() - h - 5
+            hover_label.move(int(x_pos), int(y_pos))
+            hover_label.setVisible(True)
 
     # -----------------------------
     # Create Section (Dynamic)
@@ -188,7 +274,26 @@ class DashboardWindow(QMainWindow):
         
         plot_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        curve = plot_widget.plot([], [], pen=pg.mkPen(color='r', width=2))
+        # Create explicit X and initial Y to keep mapping stable (0..49)
+        initial_x = list(range(50))
+        initial_y = [0] * 50
+        curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(color='r', width=2))
+
+        # Hover dot (hidden until hover)
+        hover_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush('r'), pen=pg.mkPen('k'))
+        plot_widget.addItem(hover_dot)
+
+        # Hover label as a QLabel overlayed on the plot widget
+        hover_label = QLabel("", plot_widget)
+        hover_label.setStyleSheet("""
+            background-color: rgba(0,0,0,190);
+            color: white;
+            border: 1px solid #AAAAAA;
+            padding: 3px;
+            border-radius: 4px;
+        """)
+        hover_label.setVisible(False)
+        hover_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
         # Layout balance: keep text narrow, graph wide
         layout.addLayout(info_layout, stretch=1)
@@ -198,7 +303,11 @@ class DashboardWindow(QMainWindow):
         frame.setLayout(layout)
         frame.curve = curve
         frame.data = [0] * 50
+        frame.timestamps = [datetime.now().strftime("%H:%M:%S")] * 50
         frame.labels = labels
+        frame.plot_widget = plot_widget
+        frame.hover_dot = hover_dot
+        frame.hover_label = hover_label
         frame.setObjectName("sectionFrame")
 
         return frame, curve, frame.data
@@ -313,7 +422,7 @@ class SettingsWindow(QDialog):
         self.refresh_spin = QSpinBox()
         self.refresh_spin.setRange(100, 10000)
         self.refresh_spin.setSingleStep(100)
-        self.refresh_spin.setValue(parent.graph_refersh_rate)
+        self.refresh_spin.setValue(parent.graph_refresh_rate)
         layout.addWidget(self.refresh_spin)
 
         # ---------------------------
@@ -332,8 +441,8 @@ class SettingsWindow(QDialog):
     def save_settings(self):
 
         # Update graph refresh rate
-        self.parent.graph_refersh_rate = self.refresh_spin.value()
-        self.parent.update_timer.setInterval(self.parent.graph_refersh_rate)
+        self.parent.graph_refresh_rate = self.refresh_spin.value()
+        self.parent.update_timer.setInterval(self.parent.graph_refresh_rate)
 
         self.close()
 
