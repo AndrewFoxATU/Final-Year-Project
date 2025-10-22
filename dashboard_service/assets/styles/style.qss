@@ -1,10 +1,115 @@
-/* Section frames (CPU, GPU, RAM, Storage) */
+/* --------------------------------------------------
+   GLOBAL APP STYLES
+-------------------------------------------------- */
+QMainWindow {
+    background-color: #1e1e1e;      /* Dark neutral background */
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+/* General Labels */
+QLabel {
+    color: #f0f0f0;
+}
+
+/* --------------------------------------------------
+   TOP BAR
+-------------------------------------------------- */
+#topButton {
+    background-color: #333333;
+    color: white;
+    border: 1px solid #555555;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+#topButton:hover {
+    background-color: #444444;
+}
+
+#topButton:pressed {
+    background-color: #555555;
+}
+
+/* --------------------------------------------------
+   SECTION FRAMES (CPU, GPU, RAM, STORAGE)
+-------------------------------------------------- */
 #sectionFrame {
-    border: 2px solid grey;       /* Grey outline */
-    border-radius: 15px;          /* Rounded edges */
+    border: 2px solid #555555;
+    border-radius: 15px;
     padding: 10px;
+    background-color: #2a2a2a;
 }
 
 #sectionFrame:hover {
-    border: 4px solid grey;       /* Grey outline */
+    border: 3px solid #888888;
+}
+
+/* Section Titles */
+#sectionFrame QLabel {
+    font-size: 13px;
+}
+
+/* --------------------------------------------------
+   BOTTOM NAVIGATION BAR
+-------------------------------------------------- */
+#bottomButton {
+    background-color: #2b2b2b;
+    color: #cccccc;
+    border: none;
+    border-top: 2px solid transparent;
+    font-weight: 500;
+}
+
+#bottomButton:hover {
+    background-color: #3a3a3a;
+    color: white;
+}
+
+/* Active Button */
+#bottomButton[active="true"] {
+    background-color: #444444;
+    color: #ffffff;
+    border-top: 2px solid #ff0000;
+}
+
+/* --------------------------------------------------
+   SETTINGS WINDOW
+-------------------------------------------------- */
+QDialog {
+    background-color: #2e2e2e;
+    color: #ffffff;
+    border-radius: 10px;
+}
+
+QSpinBox {
+    background-color: #3a3a3a;
+    color: white;
+}
+
+QPushButton {
+    background-color: #444444;
+    color: white;
+    border: 1px solid #666666;
+    border-radius: 6px;
+    padding: 5px 10px;
+}
+
+QPushButton:hover {
+    background-color: #555555;
+}
+
+QPushButton:pressed {
+    background-color: #666666;
+}
+
+/* --------------------------------------------------
+   GRAPH HOVER LABELS (CPU/RAM/GPU/etc.)
+-------------------------------------------------- */
+QLabel#hoverLabel {
+    background-color: rgba(0, 0, 0, 190);
+    color: white;
+    border: 1px solid #aaaaaa;
+    padding: 3px;
+    border-radius: 4px;
 }

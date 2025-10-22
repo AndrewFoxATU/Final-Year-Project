@@ -1,5 +1,6 @@
 # dashboard_service/gui/main.py
 # Author: Andrew Fox
+# python -m dashboard_service.gui.main
 
 # -----------------------------
 # Imports
@@ -251,7 +252,7 @@ class DashboardWindow(QMainWindow):
 
         # Graph for data visualization
         plot_widget = pg.PlotWidget()
-        plot_widget.setBackground(None)
+        plot_widget.setBackground("#2a2a2a")
         plot_widget.setYRange(0, 100)
 
         # Disable all interactions
@@ -285,13 +286,7 @@ class DashboardWindow(QMainWindow):
 
         # Hover label as a QLabel overlayed on the plot widget
         hover_label = QLabel("", plot_widget)
-        hover_label.setStyleSheet("""
-            background-color: rgba(0,0,0,190);
-            color: white;
-            border: 1px solid #AAAAAA;
-            padding: 3px;
-            border-radius: 4px;
-        """)
+        hover_label.setObjectName("hoverLabel")
         hover_label.setVisible(False)
         hover_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
