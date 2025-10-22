@@ -1,5 +1,6 @@
 # dashboard_service/gui/main.py
 # Author: Andrew Fox
+# python -m dashboard_service.gui.main
 
 # -----------------------------
 # Imports
