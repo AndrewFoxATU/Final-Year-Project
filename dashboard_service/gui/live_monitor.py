@@ -90,7 +90,6 @@ class LiveSystemMonitor(QWidget):
 
         x = list(range(len(cpu_frame.data)))
         cpu_frame.curve.setData(x, cpu_frame.data)
-        cpu_frame.plot_widget.plotItem.setXRange(0, 49, padding=0)
 
     # -----------------------------
     # RAM Data Update
@@ -113,7 +112,6 @@ class LiveSystemMonitor(QWidget):
 
         x = list(range(len(ram_frame.data)))
         ram_frame.curve.setData(x, ram_frame.data)
-        ram_frame.plot_widget.plotItem.setXRange(0, 49, padding=0)
 
     # -----------------------------
     # Graph hover update
