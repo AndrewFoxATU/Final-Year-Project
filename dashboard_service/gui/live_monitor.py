@@ -19,6 +19,7 @@ import pyqtgraph as pg
 
 
 from collector_service.collector.cpu_collector import CPUCollector
+from collector_service.collector.ram_collector import RAMCollector
 
 
 
@@ -34,7 +35,7 @@ class LiveSystemMonitor(QWidget):
         self.sections = {
             "CPU": {"fields": ["Usage", "Clock", "Temp"]},
             "GPU": {"fields": ["Usage", "Clock", "Temp"]},
-            "RAM": {"fields": ["Usage"]},
+            "RAM": {"fields": ["Usage", "Used", "Total"]},
             "Storage": {"fields": ["Usage"]}
         }
 
@@ -62,6 +63,7 @@ class LiveSystemMonitor(QWidget):
 
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_cpu_data)
+        self.update_timer.timeout.connect(self.update_ram_data)
         self.update_timer.start(self.graph_refresh_rate)
 
         self.hover_timer = QTimer()
@@ -89,6 +91,29 @@ class LiveSystemMonitor(QWidget):
         x = list(range(len(cpu_frame.data)))
         cpu_frame.curve.setData(x, cpu_frame.data)
         cpu_frame.plot_widget.plotItem.setXRange(0, 49, padding=0)
+
+    # -----------------------------
+    # RAM Data Update
+    # -----------------------------
+    def update_ram_data(self):
+        data = RAMCollector.get_ram_data()
+
+        ram_frame = self.section_frames["RAM"][0]
+        labels = ram_frame.labels
+        labels["Usage"].setText(f"Usage: {data['ram_usage_percent']:.1f}%")
+        labels["Used"].setText(f"Used: {data['used_ram_gb']:.2f} GB")
+        labels["Total"].setText(f"Total: {data['total_ram_round_gb']:.2f} GB")
+
+        # Update graph
+        ram_frame.data.append(data['ram_usage_percent'])
+        ram_frame.timestamps.append(datetime.now().strftime("%H:%M:%S"))
+        if len(ram_frame.data) > 50:
+            ram_frame.data.pop(0)
+            ram_frame.timestamps.pop(0)
+
+        x = list(range(len(ram_frame.data)))
+        ram_frame.curve.setData(x, ram_frame.data)
+        ram_frame.plot_widget.plotItem.setXRange(0, 49, padding=0)
 
     # -----------------------------
     # Graph hover update
