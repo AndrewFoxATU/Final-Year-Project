@@ -17,6 +17,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFontDatabase, QFont, QCursor
 import pyqtgraph as pg
 
+from dashboard_service.gui.settings_manager import load_settings
 
 from collector_service.collector.cpu_collector import CPUCollector
 from collector_service.collector.ram_collector import RAMCollector
@@ -58,9 +59,11 @@ class LiveSystemMonitor(QWidget):
 
         layout.addWidget(grid_widget)
 
-        # Timers
-        self.graph_refresh_rate = 1000  # milliseconds
+        # Load settings
+        settings = load_settings()
+        self.graph_refresh_rate = settings.get("graph_refresh_rate")
 
+        # Timers
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_cpu_data)
         self.update_timer.timeout.connect(self.update_ram_data)

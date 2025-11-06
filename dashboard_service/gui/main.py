@@ -9,7 +9,7 @@ from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
-    QComboBox, QSpinBox
+    QComboBox, QSpinBox, QColorDialog
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFontDatabase, QFont, QCursor
@@ -17,6 +17,8 @@ import pyqtgraph as pg
 
 # Import the Live System Monitoring panel
 from dashboard_service.gui.live_monitor import LiveSystemMonitor
+# Import settings manager
+from dashboard_service.gui.settings_manager import load_settings, save_settings
 
 
 # -----------------------------
@@ -27,6 +29,9 @@ class DashboardWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Smart System Performance Dashboard")
         self.setGeometry(100, 100, 1200, 700)
+
+        # Load settings
+        self.settings_data = load_settings()
 
         # Central widget and layout
         self.central_widget = QWidget()
@@ -174,7 +179,7 @@ class SettingsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(200, 100)
+        self.setFixedSize(200, 200)
         self.parent = parent  # reference to main dashboard
 
         layout = QVBoxLayout()
@@ -191,6 +196,11 @@ class SettingsWindow(QDialog):
         self.refresh_spin.setValue(self.parent.live_monitor_widget.graph_refresh_rate)
         layout.addWidget(self.refresh_spin)
 
+        # ---------------------------
+        # Accent Colour
+        # ---------------------------
+        layout.addWidget(QLabel("Accent Colour:"))
+
         # Save button
         self.save_button = QPushButton("Save")
         self.save_button.clicked.connect(self.save_settings)
@@ -199,14 +209,19 @@ class SettingsWindow(QDialog):
         self.setLayout(layout)
 
     def save_settings(self):
-        # Update refresh rate for live monitor
+        # Update live monitor refresh rate
         new_rate = self.refresh_spin.value()
         live_monitor = self.parent.live_monitor_widget
 
         live_monitor.graph_refresh_rate = new_rate
         live_monitor.update_timer.setInterval(new_rate)
 
+        # Update settings data
+        self.parent.settings_data["graph_refresh_rate"] = new_rate
+        save_settings(self.parent.settings_data)
+
         self.close()
+
 
 
 # -----------------------------
