@@ -28,6 +28,12 @@ class LiveSystemMonitor(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+
+        # Load settings
+        settings = load_settings()
+        self.graph_refresh_rate = settings.get("graph_refresh_rate")
+        self.accent_colour = settings.get("accent_colour")
+
         # Layout
         layout = QVBoxLayout()
         self.setLayout(layout)
@@ -49,7 +55,7 @@ class LiveSystemMonitor(QWidget):
         # Create each section and place in grid
         names = list(self.sections.keys())
         for name in names:
-            frame, curve, data = self.create_section(name, self.sections[name]["fields"])
+            frame, curve, data = self.create_section(name, self.sections[name]["fields"], self.accent_colour)
             self.section_frames[name] = (frame, curve, data)
 
         grid_layout.addWidget(self.section_frames[names[0]][0], 0, 0)
@@ -59,9 +65,7 @@ class LiveSystemMonitor(QWidget):
 
         layout.addWidget(grid_widget)
 
-        # Load settings
-        settings = load_settings()
-        self.graph_refresh_rate = settings.get("graph_refresh_rate")
+
 
         # Timers
         self.update_timer = QTimer()
@@ -183,7 +187,7 @@ class LiveSystemMonitor(QWidget):
     # -----------------------------
     # Create Section
     # -----------------------------
-    def create_section(self, name, fields):
+    def create_section(self, name, fields, accent_colour):
         layout = QHBoxLayout()
         info_layout = QVBoxLayout()
 
@@ -224,10 +228,10 @@ class LiveSystemMonitor(QWidget):
         # Graph Curve
         initial_x = list(range(50))
         initial_y = [0] * 50
-        curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(color='r', width=2))
+        curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=2))
 
 
-        hover_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush('r'), pen=pg.mkPen('k'))
+        hover_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(self.accent_colour), pen=pg.mkPen('k'))
         plot_widget.addItem(hover_dot)
 
         hover_label = QLabel("", plot_widget)

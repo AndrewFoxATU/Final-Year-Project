@@ -13,7 +13,7 @@ import os
 # Default settings values
 DEFAULT_SETTINGS = {
     "graph_refresh_rate": 1000, # ms
-    "accent_color": "#FF0000" # red
+    "accent_colour": "#FF0000" # red
 }
 
 # Path to settings file

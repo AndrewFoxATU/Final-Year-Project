@@ -70,7 +70,7 @@ QLabel {
 #bottomButton[active="true"] {
     background-color: #444444;
     color: #ffffff;
-    border-top: 2px solid #ff0000;
+    border-top: 2px solid ACCENT_COLOUR;
 }
 
 /* --------------------------------------------------

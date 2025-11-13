@@ -9,10 +9,10 @@ from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
-    QComboBox, QSpinBox, QColorDialog
+    QComboBox, QSpinBox, QColorDialog, QLineEdit, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFontDatabase, QFont, QCursor
+from PyQt6.QtGui import QFontDatabase, QFont, QCursor, QColor
 import pyqtgraph as pg
 
 # Import the Live System Monitoring panel
@@ -179,7 +179,7 @@ class SettingsWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Settings")
-        self.setFixedSize(200, 200)
+        self.setFixedSize(400, 250)
         self.parent = parent  # reference to main dashboard
 
         layout = QVBoxLayout()
@@ -199,7 +199,17 @@ class SettingsWindow(QDialog):
         # ---------------------------
         # Accent Colour
         # ---------------------------
-        layout.addWidget(QLabel("Accent Colour:"))
+        layout.addWidget(QLabel("Accent Colour (Restart Required):"))
+        
+        # Hex input field
+        current_color = self.parent.settings_data.get("accent_colour")
+        self.hex_input = QLineEdit(current_color)
+        self.hex_input.setMaxLength(7)
+        self.hex_input.setFixedWidth(100)
+        self.hex_input.setPlaceholderText("#RRGGBB")
+
+        layout.addWidget(self.hex_input)
+        layout.addStretch()
 
         # Save button
         self.save_button = QPushButton("Save")
@@ -211,13 +221,22 @@ class SettingsWindow(QDialog):
     def save_settings(self):
         # Update live monitor refresh rate
         new_rate = self.refresh_spin.value()
+        hex_code = self.hex_input.text().strip().upper()
         live_monitor = self.parent.live_monitor_widget
 
+        # Validate hex code
+        if not QColor(hex_code).isValid():
+            QMessageBox.warning(self, "Invalid Color", "Please enter a valid hex color (e.g. #1A2B3C)")
+            return
+        
         live_monitor.graph_refresh_rate = new_rate
         live_monitor.update_timer.setInterval(new_rate)
+        live_monitor.accent_colour = hex_code
+
 
         # Update settings data
         self.parent.settings_data["graph_refresh_rate"] = new_rate
+        self.parent.settings_data["accent_colour"] = hex_code
         save_settings(self.parent.settings_data)
 
         self.close()
@@ -240,7 +259,12 @@ if __name__ == "__main__":
 
     # Load QSS stylesheet
     with open("dashboard_service/assets/styles/style.qss", "r") as f:
-        app.setStyleSheet(f.read())
+        style = f.read()
+
+    settings = load_settings()
+    accent_colour = settings.get("accent_colour")
+    style = style.replace("ACCENT_COLOUR", accent_colour)
+    app.setStyleSheet(style)
 
     # Start main window
     window = DashboardWindow()
