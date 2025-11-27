@@ -229,6 +229,7 @@ class SettingsWindow(QDialog):
             QMessageBox.warning(self, "Invalid Color", "Please enter a valid hex color (e.g. #1A2B3C)")
             return
         
+        # Apply new settings
         live_monitor.graph_refresh_rate = new_rate
         live_monitor.update_timer.setInterval(new_rate)
         live_monitor.accent_colour = hex_code
@@ -260,7 +261,8 @@ if __name__ == "__main__":
     # Load QSS stylesheet
     with open("dashboard_service/assets/styles/style.qss", "r") as f:
         style = f.read()
-
+        
+    # Apply accent colour from settings
     settings = load_settings()
     accent_colour = settings.get("accent_colour")
     style = style.replace("ACCENT_COLOUR", accent_colour)
