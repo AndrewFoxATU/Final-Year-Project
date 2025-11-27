@@ -9,9 +9,8 @@
 import sys
 from datetime import datetime
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
-    QComboBox, QSpinBox
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QFrame, QGridLayout, QSizePolicy
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFontDatabase, QFont, QCursor
@@ -21,7 +20,7 @@ from dashboard_service.gui.settings_manager import load_settings
 
 from collector_service.collector.cpu_collector import CPUCollector
 from collector_service.collector.ram_collector import RAMCollector
-
+from collector_service.collector.disk_collector import DiskCollector
 
 
 class LiveSystemMonitor(QWidget):
@@ -43,7 +42,7 @@ class LiveSystemMonitor(QWidget):
             "CPU": {"fields": ["Usage", "Clock", "Temp"]},
             "GPU": {"fields": ["Usage", "Clock", "Temp"]},
             "RAM": {"fields": ["Usage", "Used", "Total"]},
-            "Storage": {"fields": ["Usage"]}
+            "Storage": {"fields": ["Device", "Usage", "Total", "Used", "Read", "Write"]}
         }
 
         self.section_frames = {}
@@ -71,6 +70,7 @@ class LiveSystemMonitor(QWidget):
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self.update_cpu_data)
         self.update_timer.timeout.connect(self.update_ram_data)
+        self.update_timer.timeout.connect(self.update_disk_data)
         self.update_timer.start(self.graph_refresh_rate)
 
         self.hover_timer = QTimer()
@@ -120,6 +120,40 @@ class LiveSystemMonitor(QWidget):
         x = list(range(len(ram_frame.data)))
         ram_frame.curve.setData(x, ram_frame.data)
 
+    # DISK UPDATE
+    def update_disk_data(self):
+        data = DiskCollector.get_disk_data()
+        storage_frame = self.section_frames["Storage"][0]
+        labels = storage_frame.labels
+
+        if not data["disks"]:
+            return
+
+        disk = data["disks"][0]
+
+        labels["Device"].setText(f"Device: {disk['device']}")
+        labels["Usage"].setText(f"Usage: {disk['usage_percent']:.1f}%")
+        labels["Total"].setText(f"Total: {disk['total_gb']:.1f} GB")
+        labels["Used"].setText(f"Used: {disk['used_gb']:.1f} GB")
+        labels["Read"].setText(f"Read: {data['read_speed_bytes']/1_000_000:.2f} MB/s")
+        labels["Write"].setText(f"Write: {data['write_speed_bytes']/1_000_000:.2f} MB/s")
+
+        # Same curve logic pattern as CPU/RAM, just duplicated for two lines
+        storage_frame.read_data.append(data['read_speed_bytes']/1_000_000)
+        storage_frame.write_data.append(data['write_speed_bytes']/1_000_000)
+
+        if len(storage_frame.read_data) > 50:
+            storage_frame.read_data.pop(0)
+            storage_frame.write_data.pop(0)
+
+        x = list(range(len(storage_frame.read_data)))
+        storage_frame.read_curve.setData(x, storage_frame.read_data)
+        storage_frame.write_curve.setData(x, storage_frame.write_data)
+
+        # Dynamic Y range for storage speeds
+        max_speed = max(storage_frame.read_data + storage_frame.write_data)
+        storage_frame.plot_widget.setYRange(0, max(max_speed * 1.2, 1))
+
     # -----------------------------
     # Graph hover update
     # -----------------------------
@@ -133,12 +167,12 @@ class LiveSystemMonitor(QWidget):
                 hover_label.setVisible(False)
                 hover_dot.setData([], [])
                 continue
-
+            # Check if mouse is over plot
             if not plot_widget.underMouse():
                 hover_label.setVisible(False)
                 hover_dot.setData([], [])
                 continue
-
+            
             view_box = plot_widget.getViewBox()
             mouse_scene = plot_widget.mapToScene(plot_widget.mapFromGlobal(QCursor.pos()))
             try:
@@ -147,14 +181,15 @@ class LiveSystemMonitor(QWidget):
                 hover_label.setVisible(False)
                 hover_dot.setData([], [])
                 continue
-
+            
+            # Get nearest data point
             x_val = mouse_point.x()
-            curve_data = curve.getData()
+            curve_data = frame.curve.getData() if name != "Storage" else frame.read_curve.getData()
             if not curve_data or len(curve_data[0]) == 0:
                 hover_label.setVisible(False)
                 hover_dot.setData([], [])
                 continue
-
+            
             x_curve, y_curve = curve_data
             try:
                 nearest_idx = min(range(len(x_curve)), key=lambda i: abs(x_curve[i] - x_val))
@@ -162,12 +197,13 @@ class LiveSystemMonitor(QWidget):
                 hover_label.setVisible(False)
                 hover_dot.setData([], [])
                 continue
-
+            
             y_val = y_curve[nearest_idx]
             hover_dot.setData([x_curve[nearest_idx]], [y_val])
-
+            
+            # label text
             ts_text = frame.timestamps[nearest_idx] if hasattr(frame, "timestamps") and len(frame.timestamps) > nearest_idx else ""
-            label_text = f"{y_val:.1f}%"
+            label_text = f"{y_val:.1f}%" if name != "Storage" else f"{y_val:.2f} MB/s"
             if ts_text:
                 label_text += f"  @ {ts_text}"
 
@@ -197,15 +233,7 @@ class LiveSystemMonitor(QWidget):
 
         labels = {}
         for field in fields:
-            if field == "Usage":
-                label = QLabel("Usage: 0%")
-            elif field == "Clock":
-                label = QLabel("Clock: 0 MHz")
-            elif field == "Temp":
-                label = QLabel("Temp: 0°C")
-            else:
-                label = QLabel(f"{field}: 0")
-
+            label = QLabel(f"{field}: 0")
             label.setAlignment(Qt.AlignmentFlag.AlignRight)
             info_layout.addWidget(label)
             labels[field] = label
@@ -251,6 +279,13 @@ class LiveSystemMonitor(QWidget):
         frame.plot_widget = plot_widget
         frame.hover_dot = hover_dot
         frame.hover_label = hover_label
+        # Two curves for Storage
+        if name == "Storage":
+            frame.read_curve = curve
+            frame.write_curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=2))
+            frame.read_data = [0] * 50
+            frame.write_data = [0] * 50
+
         frame.setObjectName("sectionFrame")
 
         return frame, curve, frame.data

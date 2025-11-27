@@ -6,7 +6,7 @@ import datetime
 import math
 
 class RAMCollector:
-    """Collects core RAM and swap data suitable for monitoring and ML analysis."""
+    # Collects core RAM and swap data suitable for monitoring and ML analysis.
 
     @staticmethod
     def get_ram_data():
