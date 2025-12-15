@@ -21,6 +21,7 @@ from dashboard_service.gui.settings_manager import load_settings
 from collector_service.collector.cpu_collector import CPUCollector
 from collector_service.collector.ram_collector import RAMCollector
 from collector_service.collector.disk_collector import DiskCollector
+from collector_service.collector.gpu_collector import GPUCollector
 
 
 class LiveSystemMonitor(QWidget):
@@ -40,7 +41,7 @@ class LiveSystemMonitor(QWidget):
         # Sections: CPU, GPU, RAM, Storage
         self.sections = {
             "CPU": {"fields": ["Usage", "Clock", "Temp"]},
-            "GPU": {"fields": ["Usage", "Clock", "Temp"]},
+            "GPU": {"fields": ["Usage", "VRAM", "Temp"]},
             "RAM": {"fields": ["Usage", "Used", "Total"]},
             "Storage": {"fields": ["Device", "Usage", "Total", "Used", "Read", "Write"]}
         }
@@ -71,11 +72,12 @@ class LiveSystemMonitor(QWidget):
         self.update_timer.timeout.connect(self.update_cpu_data)
         self.update_timer.timeout.connect(self.update_ram_data)
         self.update_timer.timeout.connect(self.update_disk_data)
+        self.update_timer.timeout.connect(self.update_gpu_data)
         self.update_timer.start(self.graph_refresh_rate)
 
         self.hover_timer = QTimer()
         self.hover_timer.timeout.connect(self.update_hover)
-        self.hover_timer.start(50)
+        self.hover_timer.start(50) # 20 FPS for hover updates
         
     # -----------------------------
     # CPU Data Update
@@ -119,6 +121,36 @@ class LiveSystemMonitor(QWidget):
 
         x = list(range(len(ram_frame.data)))
         ram_frame.curve.setData(x, ram_frame.data)
+
+    # -----------------------------
+    # GPU Data Update
+    # -----------------------------
+    def update_gpu_data(self):
+        data = GPUCollector.get_gpu_data()
+
+        if not data["gpus"]:
+            return
+
+        gpu = data["gpus"][0]  # Use GPU 0
+
+        gpu_frame = self.section_frames["GPU"][0]
+        labels = gpu_frame.labels
+
+        labels["Usage"].setText(f"Usage: {gpu['gpu_util_percent']:.1f}%")
+        labels["VRAM"].setText(f"VRAM Usage: {gpu['gpu_mem_used_mb']} MB")
+        labels["Temp"].setText(f"Temp: {gpu['gpu_temp_c']} °C")
+
+        # Update graph (GPU usage)
+        gpu_frame.data.append(gpu["gpu_util_percent"])
+        gpu_frame.timestamps.append(datetime.now().strftime("%H:%M:%S"))
+
+        if len(gpu_frame.data) > 50:
+            gpu_frame.data.pop(0)
+            gpu_frame.timestamps.pop(0)
+
+        x = list(range(len(gpu_frame.data)))
+        gpu_frame.curve.setData(x, gpu_frame.data)
+
 
     # DISK UPDATE
     def update_disk_data(self):
