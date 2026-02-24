@@ -44,8 +44,8 @@ class GPUCollector:
                 "gpu_power_usage_w": nvml.nvmlDeviceGetPowerUsage(handle) / 1000,
                 "gpu_power_limit_w": nvml.nvmlDeviceGetEnforcedPowerLimit(handle) / 1000,
 
-                "gpu_pcie_rx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_RX_BYTES),
-                "gpu_pcie_tx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_TX_BYTES),
+                #"gpu_pcie_rx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_RX_BYTES),
+                #"gpu_pcie_tx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_TX_BYTES),
             }
 
             gpus.append(gpu_data)

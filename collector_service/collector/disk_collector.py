@@ -59,5 +59,11 @@ class DiskCollector:
         }
 
 
+# -----------------------------
+# Print Disk data when run directly
+# -----------------------------
 if __name__ == "__main__":
-    print(DiskCollector.get_disk_data())
+    data = DiskCollector.get_disk_data()
+    print("=== Disk Data ===")
+    for key, value in data.items():
+        print(f"{key}: {value}")
