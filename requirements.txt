@@ -8,9 +8,9 @@ pyqtgraph==0.13.4 # pyqtgraph offers smooth real-time graph plotting.
 
 # === System Monitoring ===
 psutil==6.0.0 # psutil gathers system stats: CPU, memory, disk, network, etc.
-GPUtil==1.4.0 # GPUtil monitors GPU load and memory (NVIDIA GPUs only).
 pywin32==307 # pywin32 provides Windows-specific system calls and process control.
-
+# GPU via NVML
+nvidia-ml-py==12.560.30
 
 # === Utility & Configuration ===
 python-dotenv==1.0.1 # python-dotenv enables configuration via .env files.
