@@ -31,21 +31,13 @@ class GPUCollector:
 
                 "gpu_util_percent": util.gpu,
                 "gpu_mem_util_percent": util.memory,
-
-                "gpu_mem_total_mb": mem.total // (1024 * 1024),
                 "gpu_mem_used_mb": mem.used // (1024 * 1024),
-                "gpu_mem_free_mb": mem.free // (1024 * 1024),
 
                 "gpu_temp_c": nvml.nvmlDeviceGetTemperature(handle, nvml.NVML_TEMPERATURE_GPU),
-
                 "gpu_core_clock_mhz": nvml.nvmlDeviceGetClockInfo(handle, nvml.NVML_CLOCK_GRAPHICS),
-                "gpu_mem_clock_mhz": nvml.nvmlDeviceGetClockInfo( handle, nvml.NVML_CLOCK_MEM),
 
                 "gpu_power_usage_w": nvml.nvmlDeviceGetPowerUsage(handle) / 1000,
                 "gpu_power_limit_w": nvml.nvmlDeviceGetEnforcedPowerLimit(handle) / 1000,
-
-                #"gpu_pcie_rx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_RX_BYTES),
-                #"gpu_pcie_tx_mb": nvml.nvmlDeviceGetPcieThroughput(handle, nvml.NVML_PCIE_UTIL_TX_BYTES),
             }
 
             gpus.append(gpu_data)

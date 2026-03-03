@@ -23,9 +23,24 @@ class DiskCollector:
         read_speed = 0
         write_speed = 0
 
+        read_count_delta  = 0
+        write_count_delta = 0
+        avg_read_latency_ms  = 0.0
+        avg_write_latency_ms = 0.0
+
         if time_diff > 0:
-            read_speed = (current_io.read_bytes - DiskCollector.last_disk_io.read_bytes) / time_diff
-            write_speed = (current_io.write_bytes - DiskCollector.last_disk_io.write_bytes) / time_diff
+            read_speed        = (current_io.read_bytes  - DiskCollector.last_disk_io.read_bytes)  / time_diff
+            write_speed       = (current_io.write_bytes - DiskCollector.last_disk_io.write_bytes) / time_diff
+
+            read_count_delta  = current_io.read_count  - DiskCollector.last_disk_io.read_count
+            write_count_delta = current_io.write_count - DiskCollector.last_disk_io.write_count
+            read_time_delta   = current_io.read_time   - DiskCollector.last_disk_io.read_time
+            write_time_delta  = current_io.write_time  - DiskCollector.last_disk_io.write_time
+
+            if read_count_delta  > 0:
+                avg_read_latency_ms  = read_time_delta  / read_count_delta
+            if write_count_delta > 0:
+                avg_write_latency_ms = write_time_delta / write_count_delta
 
         DiskCollector.last_disk_io = current_io
         DiskCollector.last_timestamp = now
@@ -55,6 +70,8 @@ class DiskCollector:
             "timestamp": now.isoformat(),
             "read_speed_bytes": read_speed,
             "write_speed_bytes": write_speed,
+            "avg_read_latency_ms": avg_read_latency_ms,
+            "avg_write_latency_ms": avg_write_latency_ms,
             "disks": disk_list,
         }
 
