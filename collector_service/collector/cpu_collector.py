@@ -9,15 +9,13 @@ class CPUCollector:
 
     @staticmethod
     def get_cpu_data():
+        freq = psutil.cpu_freq()
+
         cpu_data = {
             "timestamp": datetime.datetime.now().isoformat(),
             "cpu_percent_total": psutil.cpu_percent(interval=None),
-            "cpu_percent_per_core": psutil.cpu_percent(interval=None, percpu=True),
-            "cpu_thread_count": psutil.cpu_count(logical=True),
-            "cpu_core_count": psutil.cpu_count(logical=False),
-            "cpu_freq": psutil.cpu_freq()._asdict() if psutil.cpu_freq() else {},
-            "cpu_times_per_core": [t._asdict() for t in psutil.cpu_times(percpu=True)],
-            "cpu_stats": psutil.cpu_stats()._asdict(),
+            "freq_current_mhz": freq.current if freq else None,
+            "freq_max_mhz": freq.max if freq else None,
         }
         return cpu_data
 
