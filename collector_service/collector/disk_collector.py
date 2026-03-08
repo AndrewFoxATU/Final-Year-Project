@@ -3,7 +3,6 @@
 
 import psutil
 import datetime
-import math
 
 class DiskCollector:
     """
@@ -61,6 +60,7 @@ class DiskCollector:
             disk_list.append({
                 "device": part.device,
                 "mountpoint": part.mountpoint,
+                "fstype": part.fstype,
                 "total_gb": total_gb,
                 "used_gb": used_gb,
                 "usage_percent": percent,
