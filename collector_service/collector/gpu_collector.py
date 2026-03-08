@@ -26,8 +26,6 @@ class GPUCollector:
             gpu_data = {
                 "timestamp": timestamp,
                 "gpu_id": i,
-                "gpu_name": nvml.nvmlDeviceGetName(handle),
-                "gpu_uuid": nvml.nvmlDeviceGetUUID(handle),
 
                 "gpu_util_percent": util.gpu,
                 "gpu_mem_util_percent": util.memory,
