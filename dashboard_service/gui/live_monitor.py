@@ -88,7 +88,7 @@ class LiveSystemMonitor(QWidget):
         cpu_frame = self.section_frames["CPU"][0]
         labels = cpu_frame.labels
         labels["Usage"].setText(f"Usage: {data['cpu_percent_total']:.1f}%")
-        labels["Clock"].setText(f"Clock: {data['cpu_freq']['current']:.1f} MHz" if data['cpu_freq'] else "Clock: N/A")
+        labels["Clock"].setText(f"Clock: {data['freq_current_mhz']:.1f} MHz" if data['freq_current_mhz'] else "Clock: N/A")
         labels["Temp"].setText("Temp: N/A")
 
         cpu_frame.data.append(data['cpu_percent_total'])
