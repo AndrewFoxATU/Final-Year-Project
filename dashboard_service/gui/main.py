@@ -5,20 +5,58 @@
 # Imports
 # -----------------------------
 import sys
+import time
 from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
     QComboBox, QSpinBox, QColorDialog, QLineEdit, QMessageBox
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtGui import QFontDatabase, QFont, QCursor, QColor
 import pyqtgraph as pg
 
+# Import collectors
+from collector_service.collector.cpu_collector import CPUCollector
+from collector_service.collector.ram_collector import RAMCollector
+from collector_service.collector.gpu_collector import GPUCollector
+from collector_service.collector.disk_collector import DiskCollector
+from storage_service.storage.main import StorageManager
+
 # Import the Live System Monitoring panel
 from dashboard_service.gui.live_monitor import LiveSystemMonitor
+# Import the Analytics panel
+from dashboard_service.gui.analytics_view import AnalyticsWidget
 # Import settings manager
 from dashboard_service.gui.settings_manager import load_settings, save_settings
+
+
+# -----------------------------
+# Background Storage Thread
+# -----------------------------
+class StorageThread(QThread):
+    """Collects and stores one sample per second in a background thread."""
+
+    def run(self):
+        storage = StorageManager(db_path="telemetry.db", sample_interval_ms=1000)
+        try:
+            while not self.isInterruptionRequested():
+                try:
+                    _t0 = time.perf_counter()
+                    cpu = CPUCollector.get_cpu_data()
+                    ram = RAMCollector.get_ram_data()
+                    try:
+                        gpu = GPUCollector.get_gpu_data()
+                    except Exception:
+                        gpu = None
+                    disk = DiskCollector.get_disk_data()
+                    collect_ms = int((time.perf_counter() - _t0) * 1000)
+                    storage.insert_sample(cpu, ram, gpu, disk, collect_ms)
+                except Exception:
+                    pass
+                self.msleep(1000)
+        finally:
+            storage.close()
 
 
 # -----------------------------
@@ -54,6 +92,15 @@ class DashboardWindow(QMainWindow):
         # Default Mode: Live Monitoring
         self.set_active_button(self.live_button)
         self.content_widgets["Live System Monitoring"].show()
+
+        # Start background storage thread
+        self._storage_thread = StorageThread(self)
+        self._storage_thread.start()
+
+    def closeEvent(self, event):
+        self._storage_thread.requestInterruption()
+        self._storage_thread.wait()
+        super().closeEvent(event)
 
     # -----------------------------
     # Top Bar
@@ -94,10 +141,12 @@ class DashboardWindow(QMainWindow):
         # Import and use LiveSystemMonitor as a self-contained widget
         self.live_monitor_widget = LiveSystemMonitor(self)
 
+        self.analytics_widget = AnalyticsWidget(self)
+
         # Create main content mapping
         self.content_widgets = {
             "Live System Monitoring": self.live_monitor_widget,
-            "Analytics": QLabel("Analytics Panel"),
+            "Analytics": self.analytics_widget,
             "RAM Cleaner": QLabel("RAM Cleaner Panel"),
             "Performance Mode": QLabel("Performance Mode Panel")
         }

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS host (
   os_version         TEXT,
   machine            TEXT,
   cpu_model          TEXT,
-  created_at_iso     TEXT NOT NULL
+  created_at_iso     TEXT NOT NULL,
+  created_at_unix_ms INTEGER
 );
 
 -- One continuous run of the collector service
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS gpu_device (
   host_id             INTEGER NOT NULL REFERENCES host(host_id) ON DELETE CASCADE,
   gpu_name            TEXT,
   gpu_id_first_seen   INTEGER,
-  first_seen_iso      TEXT NOT NULL
+  first_seen_iso      TEXT NOT NULL,
+  first_seen_unix_ms  INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS gpu_sample (
@@ -128,6 +130,7 @@ CREATE TABLE IF NOT EXISTS disk_partition (
   mountpoint           TEXT NOT NULL,
   fstype               TEXT,
   first_seen_iso       TEXT NOT NULL,
+  first_seen_unix_ms   INTEGER,
   UNIQUE(host_id, device, mountpoint)
 );
 
