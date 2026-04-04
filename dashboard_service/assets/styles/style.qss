@@ -113,3 +113,164 @@ QLabel#hoverLabel {
     padding: 3px;
     border-radius: 4px;
 }
+
+/* --------------------------------------------------
+   PROGRESS BARS
+-------------------------------------------------- */
+QProgressBar {
+    background-color: #3a3a3a;
+    border: 1px solid #555555;
+    border-radius: 4px;
+}
+
+QProgressBar::chunk {
+    background-color: ACCENT_COLOUR;
+    border-radius: 3px;
+}
+
+/* --------------------------------------------------
+   CHECKBOXES
+-------------------------------------------------- */
+QCheckBox {
+    color: #e0e0e0;
+    font-size: 13px;
+    spacing: 6px;
+}
+
+QCheckBox:disabled {
+    color: #555555;
+}
+
+QCheckBox::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #555555;
+    border-radius: 3px;
+    background-color: #3a3a3a;
+}
+
+QCheckBox::indicator:checked {
+    background-color: ACCENT_COLOUR;
+    border-color: ACCENT_COLOUR;
+}
+
+QCheckBox::indicator:disabled {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+}
+
+/* --------------------------------------------------
+   BUTTONS — DISABLED STATE
+-------------------------------------------------- */
+QPushButton:disabled {
+    color: #777777;
+    background-color: #333333;
+    border-color: #444444;
+}
+
+/* --------------------------------------------------
+   ANALYTICS TAB
+-------------------------------------------------- */
+
+/* Accent button (Start/Stop toggle, Export confirm button) */
+#accentButton {
+    background-color: ACCENT_COLOUR;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+#accentButton:hover {
+    background-color: ACCENT_COLOUR;
+    border: 1px solid rgba(255, 255, 255, 60);
+}
+
+#accentButton:pressed {
+    border: 1px solid rgba(255, 255, 255, 30);
+}
+
+/* Analytics page title */
+QLabel#analyticsTitle {
+    font-size: 15px;
+}
+
+/* KPI stat cards */
+QLabel#statCardTitle {
+    color: #888888;
+    font-size: 12px;
+}
+
+QLabel#statCardValue {
+    color: ACCENT_COLOUR;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+QLabel#statCardSub {
+    color: #aaaaaa;
+    font-size: 12px;
+}
+
+/* Section card header label */
+QLabel#cardHeader {
+    font-size: 14px;
+}
+
+/* Session stats bar */
+QLabel#sessionLabel {
+    color: #888888;
+    font-size: 11px;
+}
+
+QLabel#sessionValue {
+    color: #e0e0e0;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+QFrame#sessionDivider {
+    color: #444444;
+}
+
+/* Risk bar row */
+QLabel#riskLabel {
+    color: #cccccc;
+    font-size: 13px;
+}
+
+/* Issue cards */
+QLabel#issueBadge {
+    background-color: ACCENT_COLOUR;
+    color: #ffffff;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 4px;
+}
+
+QLabel#issueProb {
+    font-size: 13px;
+    font-weight: bold;
+    color: ACCENT_COLOUR;
+}
+
+QLabel#issueDesc {
+    font-size: 12px;
+    color: #aaaaaa;
+}
+
+QLabel#noIssuesLabel {
+    color: #666666;
+    font-size: 13px;
+}
+
+/* Scroll area transparency */
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
+QWidget#issuesContainer {
+    background: transparent;
+}

@@ -86,7 +86,6 @@ CREATE TABLE IF NOT EXISTS gpu_device (
   gpu_uuid            TEXT PRIMARY KEY,
   host_id             INTEGER NOT NULL REFERENCES host(host_id) ON DELETE CASCADE,
   gpu_name            TEXT,
-  gpu_id_first_seen   INTEGER,
   first_seen_iso      TEXT NOT NULL,
   first_seen_unix_ms  INTEGER
 );
