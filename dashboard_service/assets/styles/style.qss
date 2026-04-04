@@ -50,6 +50,24 @@ QLabel {
     font-size: 13px;
 }
 
+QLabel#metricSectionTitle {
+    font-size: 13px;
+    font-weight: bold;
+    color: #e0e0e0;
+    margin-bottom: 4px;
+}
+
+QLabel#metricFieldName {
+    font-size: 12px;
+    color: #ffffff;
+}
+
+QLabel#metricValue {
+    font-size: 12px;
+    color: #e0e0e0;
+    font-weight: bold;
+}
+
 /* --------------------------------------------------
    BOTTOM NAVIGATION BAR
 -------------------------------------------------- */
