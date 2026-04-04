@@ -43,9 +43,9 @@ class StorageManager:
         for gpu in info["gpus"]:
             self.gpu_uuid_map[gpu["gpu_id"]] = gpu["gpu_uuid"]
             self.conn.execute(
-                """INSERT OR IGNORE INTO gpu_device (gpu_uuid, host_id, gpu_name, gpu_id_first_seen, first_seen_iso, first_seen_unix_ms)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (gpu["gpu_uuid"], self.host_id, gpu["gpu_name"], gpu["gpu_id"], ts_iso, ts_unix_ms),
+                """INSERT OR IGNORE INTO gpu_device (gpu_uuid, host_id, gpu_name, first_seen_iso, first_seen_unix_ms)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (gpu["gpu_uuid"], self.host_id, gpu["gpu_name"], ts_iso, ts_unix_ms),
             )
         self.conn.commit()
 
