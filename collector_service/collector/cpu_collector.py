@@ -12,7 +12,7 @@ import datetime
 # hardware and returns the true real-time frequency including turbo boost.
 try:
     _pdh_query = win32pdh.OpenQuery()
-    _pdh_counter = win32pdh.AddCounter(
+    _pdh_freq_counter = win32pdh.AddCounter(
         _pdh_query,
         r"\Processor Information(_Total)\Actual Frequency"
     )
@@ -32,7 +32,7 @@ class CPUCollector:
         if _pdh_available:
             win32pdh.CollectQueryData(_pdh_query)
             _, freq_current = win32pdh.GetFormattedCounterValue(
-                _pdh_counter, win32pdh.PDH_FMT_DOUBLE
+                _pdh_freq_counter, win32pdh.PDH_FMT_DOUBLE
             )
             freq_current = round(freq_current, 1)
         else:

@@ -50,6 +50,10 @@ class LiveSystemMonitor(QWidget):
         grid_widget = QWidget()
         grid_layout = QGridLayout()
         grid_layout.setSpacing(20)
+        grid_layout.setColumnStretch(0, 1)
+        grid_layout.setColumnStretch(1, 1)
+        grid_layout.setRowStretch(0, 1)
+        grid_layout.setRowStretch(1, 1)
         grid_widget.setLayout(grid_layout)
 
         # Create each section and place in grid
@@ -87,9 +91,9 @@ class LiveSystemMonitor(QWidget):
 
         cpu_frame = self.section_frames["CPU"][0]
         labels = cpu_frame.labels
-        labels["Usage"].setText(f"Usage: {data['cpu_percent_total']:.1f}%")
-        labels["Clock"].setText(f"Clock: {data['freq_current_mhz']:.1f} MHz" if data['freq_current_mhz'] else "Clock: N/A")
-        labels["Temp"].setText("Temp: N/A")
+        labels["Usage"].setText(f"{data['cpu_percent_total']:.1f}%")
+        labels["Clock"].setText(f"{data['freq_current_mhz']:.1f} MHz" if data['freq_current_mhz'] else "N/A")
+        labels["Temp"].setText("N/A")
 
         cpu_frame.data.append(data['cpu_percent_total'])
         cpu_frame.timestamps.append(datetime.now().strftime("%H:%M:%S"))
@@ -108,9 +112,9 @@ class LiveSystemMonitor(QWidget):
 
         ram_frame = self.section_frames["RAM"][0]
         labels = ram_frame.labels
-        labels["Usage"].setText(f"Usage: {data['ram_usage_percent']:.1f}%")
-        labels["Used"].setText(f"Used: {data['used_ram_gb']:.2f} GB")
-        labels["Total"].setText(f"Total: {data['total_ram_round_gb']:.2f} GB")
+        labels["Usage"].setText(f"{data['ram_usage_percent']:.1f}%")
+        labels["Used"].setText(f"{data['used_ram_gb']:.2f} GB")
+        labels["Total"].setText(f"{data['total_ram_round_gb']:.2f} GB")
 
         # Update graph
         ram_frame.data.append(data['ram_usage_percent'])
@@ -136,9 +140,9 @@ class LiveSystemMonitor(QWidget):
         gpu_frame = self.section_frames["GPU"][0]
         labels = gpu_frame.labels
 
-        labels["Usage"].setText(f"Usage: {gpu['gpu_util_percent']:.1f}%")
-        labels["VRAM"].setText(f"VRAM Usage: {gpu['gpu_mem_used_mb']} MB")
-        labels["Temp"].setText(f"Temp: {gpu['gpu_temp_c']} °C")
+        labels["Usage"].setText(f"{gpu['gpu_util_percent']:.1f}%")
+        labels["VRAM"].setText(f"{gpu['gpu_mem_used_mb']} MB")
+        labels["Temp"].setText(f"{gpu['gpu_temp_c']} °C")
 
         # Update graph (GPU usage)
         gpu_frame.data.append(gpu["gpu_util_percent"])
@@ -163,12 +167,12 @@ class LiveSystemMonitor(QWidget):
 
         disk = data["disks"][0]
 
-        labels["Device"].setText(f"Device: {disk['device']}")
-        labels["Usage"].setText(f"Usage: {disk['usage_percent']:.1f}%")
-        labels["Total"].setText(f"Total: {disk['total_gb']:.1f} GB")
-        labels["Used"].setText(f"Used: {disk['used_gb']:.1f} GB")
-        labels["Read"].setText(f"Read: {data['read_speed_bytes']/1_000_000:.2f} MB/s")
-        labels["Write"].setText(f"Write: {data['write_speed_bytes']/1_000_000:.2f} MB/s")
+        labels["Device"].setText(f"{disk['device']}")
+        labels["Usage"].setText(f"{disk['usage_percent']:.1f}%")
+        labels["Total"].setText(f"{disk['total_gb']:.1f} GB")
+        labels["Used"].setText(f"{disk['used_gb']:.1f} GB")
+        labels["Read"].setText(f"{data['read_speed_bytes']/1_000_000:.2f} MB/s")
+        labels["Write"].setText(f"{data['write_speed_bytes']/1_000_000:.2f} MB/s")
 
         # Same curve logic pattern as CPU/RAM, just duplicated for two lines
         storage_frame.read_data.append(data['read_speed_bytes']/1_000_000)
@@ -260,15 +264,27 @@ class LiveSystemMonitor(QWidget):
         info_layout = QVBoxLayout()
 
         section_title = QLabel(f"<b>{name}</b>")
-        section_title.setAlignment(Qt.AlignmentFlag.AlignRight)
+        section_title.setObjectName("metricSectionTitle")
         info_layout.addWidget(section_title)
 
         labels = {}
         for field in fields:
-            label = QLabel(f"{field}: 0")
-            label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            info_layout.addWidget(label)
-            labels[field] = label
+            row_layout = QHBoxLayout()
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(4)
+
+            field_label = QLabel(f"{field}")
+            field_label.setObjectName("metricFieldName")
+            field_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+
+            value_label = QLabel("0")
+            value_label.setObjectName("metricValue")
+            value_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+            row_layout.addWidget(field_label)
+            row_layout.addWidget(value_label)
+            info_layout.addLayout(row_layout)
+            labels[field] = value_label
 
         info_layout.addStretch()
 
@@ -299,7 +315,10 @@ class LiveSystemMonitor(QWidget):
         hover_label.setVisible(False)
         hover_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
 
-        layout.addLayout(info_layout, stretch=1)
+        info_widget = QWidget()
+        info_widget.setLayout(info_layout)
+        info_widget.setFixedWidth(150)
+        layout.addWidget(info_widget)
         layout.addWidget(plot_widget, stretch=4)
 
         frame = QFrame()
