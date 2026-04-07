@@ -19,12 +19,17 @@ PRAGMA foreign_keys = ON;
 -- ----------------------------
 
 CREATE TABLE IF NOT EXISTS host (
-  host_id            INTEGER PRIMARY KEY,
+  host_uuid          TEXT PRIMARY KEY,
   hostname           TEXT NOT NULL,
+  mac_address        TEXT,
   os_name            TEXT,
   os_version         TEXT,
   machine            TEXT,
   cpu_model          TEXT,
+  cpu_core_count     INTEGER,
+  cpu_thread_count   INTEGER,
+  total_ram_gb       REAL,
+  gpu_detected       INTEGER NOT NULL DEFAULT 0,
   created_at_iso     TEXT NOT NULL,
   created_at_unix_ms INTEGER
 );
@@ -32,7 +37,7 @@ CREATE TABLE IF NOT EXISTS host (
 -- One continuous run of the collector service
 CREATE TABLE IF NOT EXISTS session (
   session_id         INTEGER PRIMARY KEY,
-  host_id            INTEGER NOT NULL REFERENCES host(host_id) ON DELETE CASCADE,
+  host_uuid          TEXT NOT NULL REFERENCES host(host_uuid) ON DELETE CASCADE,
   started_at_iso     TEXT NOT NULL,
   started_at_unix_ms INTEGER NOT NULL,
   sample_interval_ms INTEGER
@@ -59,8 +64,6 @@ CREATE INDEX IF NOT EXISTS idx_sample_session_ts ON sample(session_id, ts_unix_m
 
 CREATE TABLE IF NOT EXISTS ram_sample (
   sample_id           INTEGER PRIMARY KEY REFERENCES sample(sample_id) ON DELETE CASCADE,
-  total_ram_gb        REAL NOT NULL,
-  total_ram_round_gb  INTEGER NOT NULL,
   used_ram_gb         REAL NOT NULL,
   ram_usage_percent   REAL NOT NULL,
   swap_usage_percent  REAL NOT NULL
@@ -84,7 +87,7 @@ CREATE TABLE IF NOT EXISTS cpu_sample (
 
 CREATE TABLE IF NOT EXISTS gpu_device (
   gpu_uuid            TEXT PRIMARY KEY,
-  host_id             INTEGER NOT NULL REFERENCES host(host_id) ON DELETE CASCADE,
+  host_uuid           TEXT NOT NULL REFERENCES host(host_uuid) ON DELETE CASCADE,
   gpu_name            TEXT,
   first_seen_iso      TEXT NOT NULL,
   first_seen_unix_ms  INTEGER
@@ -124,13 +127,13 @@ CREATE TABLE IF NOT EXISTS disk_io_sample (
 
 CREATE TABLE IF NOT EXISTS disk_partition (
   partition_id         INTEGER PRIMARY KEY,
-  host_id              INTEGER NOT NULL REFERENCES host(host_id) ON DELETE CASCADE,
+  host_uuid            TEXT NOT NULL REFERENCES host(host_uuid) ON DELETE CASCADE,
   device               TEXT NOT NULL,
   mountpoint           TEXT NOT NULL,
   fstype               TEXT,
   first_seen_iso       TEXT NOT NULL,
   first_seen_unix_ms   INTEGER,
-  UNIQUE(host_id, device, mountpoint)
+  UNIQUE(host_uuid, device, mountpoint)
 );
 
 CREATE TABLE IF NOT EXISTS disk_partition_sample (

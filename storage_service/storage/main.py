@@ -21,39 +21,37 @@ class StorageManager:
 
         info = SystemInfoCollector.get_system_info()
 
-        # Register host (upsert by hostname)
-        cur = self.conn.execute(
-            "SELECT host_id FROM host WHERE hostname = ?", (info["hostname"],)
+        # Register host (upsert by UUID)
+        self.host_uuid = info["host_uuid"]
+        self.conn.execute(
+            """INSERT OR IGNORE INTO host
+                 (host_uuid, hostname, mac_address, os_name, os_version, machine,
+                  cpu_model, cpu_core_count, cpu_thread_count, total_ram_gb, gpu_detected,
+                  created_at_iso, created_at_unix_ms)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (self.host_uuid, info["hostname"], info["mac_address"],
+             info["os_name"], info["os_version"], info["machine"],
+             info["cpu_model"], info["cpu_core_count"], info["cpu_thread_count"],
+             info["total_ram_gb"], info["gpu_detected"], ts_iso, ts_unix_ms),
         )
-        row = cur.fetchone()
-        if row:
-            self.host_id = row["host_id"]
-        else:
-            cur = self.conn.execute(
-                """INSERT INTO host (hostname, os_name, os_version, machine, cpu_model, created_at_iso, created_at_unix_ms)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (info["hostname"], info["os_name"], info["os_version"],
-                 info["machine"], info["cpu_model"], ts_iso, ts_unix_ms),
-            )
-            self.conn.commit()
-            self.host_id = cur.lastrowid
+        self.conn.commit()
 
         # Register GPU devices
         self.gpu_uuid_map: dict[int, str] = {}
         for gpu in info["gpus"]:
             self.gpu_uuid_map[gpu["gpu_id"]] = gpu["gpu_uuid"]
             self.conn.execute(
-                """INSERT OR IGNORE INTO gpu_device (gpu_uuid, host_id, gpu_name, first_seen_iso, first_seen_unix_ms)
+                """INSERT OR IGNORE INTO gpu_device (gpu_uuid, host_uuid, gpu_name, first_seen_iso, first_seen_unix_ms)
                    VALUES (?, ?, ?, ?, ?)""",
-                (gpu["gpu_uuid"], self.host_id, gpu["gpu_name"], ts_iso, ts_unix_ms),
+                (gpu["gpu_uuid"], self.host_uuid, gpu["gpu_name"], ts_iso, ts_unix_ms),
             )
         self.conn.commit()
 
         # Open session
         cur = self.conn.execute(
-            """INSERT INTO session (host_id, started_at_iso, started_at_unix_ms, sample_interval_ms)
+            """INSERT INTO session (host_uuid, started_at_iso, started_at_unix_ms, sample_interval_ms)
                VALUES (?, ?, ?, ?)""",
-            (self.host_id, ts_iso, ts_unix_ms, sample_interval_ms),
+            (self.host_uuid, ts_iso, ts_unix_ms, sample_interval_ms),
         )
         self.conn.commit()
         self.session_id = cur.lastrowid
@@ -63,8 +61,8 @@ class StorageManager:
         self.partition_id_map: dict[tuple, int] = {
             (row["device"], row["mountpoint"]): row["partition_id"]
             for row in self.conn.execute(
-                "SELECT partition_id, device, mountpoint FROM disk_partition WHERE host_id = ?",
-                (self.host_id,),
+                "SELECT partition_id, device, mountpoint FROM disk_partition WHERE host_uuid = ?",
+                (self.host_uuid,),
             ).fetchall()
         }
 
@@ -108,12 +106,10 @@ class StorageManager:
             try:
                 self.conn.execute(
                     """INSERT INTO ram_sample
-                         (sample_id, total_ram_gb, total_ram_round_gb, used_ram_gb,
-                          ram_usage_percent, swap_usage_percent)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (sample_id, ram_data["total_ram_gb"], ram_data["total_ram_round_gb"],
-                     ram_data["used_ram_gb"], ram_data["ram_usage_percent"],
-                     ram_data["swap_usage_percent"]),
+                         (sample_id, used_ram_gb, ram_usage_percent, swap_usage_percent)
+                       VALUES (?, ?, ?, ?)""",
+                    (sample_id, ram_data["used_ram_gb"],
+                     ram_data["ram_usage_percent"], ram_data["swap_usage_percent"]),
                 )
             except Exception:
                 dropped += 1
@@ -161,17 +157,17 @@ class StorageManager:
                 if partition_id is None:
                     cur = self.conn.execute(
                         """INSERT OR IGNORE INTO disk_partition
-                             (host_id, device, mountpoint, fstype, first_seen_iso, first_seen_unix_ms)
+                             (host_uuid, device, mountpoint, fstype, first_seen_iso, first_seen_unix_ms)
                            VALUES (?, ?, ?, ?, ?, ?)""",
-                        (self.host_id, disk["device"], disk["mountpoint"],
+                        (self.host_uuid, disk["device"], disk["mountpoint"],
                          disk.get("fstype"), ts_iso, ts_unix_ms),
                     )
                     if cur.lastrowid:
                         partition_id = cur.lastrowid
                     else:
                         row = self.conn.execute(
-                            "SELECT partition_id FROM disk_partition WHERE host_id=? AND device=? AND mountpoint=?",
-                            (self.host_id, disk["device"], disk["mountpoint"]),
+                            "SELECT partition_id FROM disk_partition WHERE host_uuid=? AND device=? AND mountpoint=?",
+                            (self.host_uuid, disk["device"], disk["mountpoint"]),
                         ).fetchone()
                         partition_id = row["partition_id"]
                     self.partition_id_map[key] = partition_id
@@ -208,8 +204,7 @@ class StorageManager:
             """SELECT
                  s.sample_id, s.ts_iso, s.ts_unix_ms,
                  c.cpu_percent_total, c.freq_current_mhz, c.freq_max_mhz,
-                 r.total_ram_gb, r.total_ram_round_gb, r.used_ram_gb,
-                 r.ram_usage_percent, r.swap_usage_percent,
+                 r.used_ram_gb, r.ram_usage_percent, r.swap_usage_percent,
                  g.gpu_util_percent, g.gpu_mem_util_percent, g.gpu_mem_used_mb,
                  g.gpu_temp_c, g.gpu_core_clock_mhz, g.gpu_power_usage_w, g.gpu_power_limit_w,
                  d.read_speed_bytes, d.write_speed_bytes,
