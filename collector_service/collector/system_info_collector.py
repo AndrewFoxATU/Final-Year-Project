@@ -29,17 +29,30 @@ class SystemInfoCollector:
             "cpu_model":       SystemInfoCollector._get_cpu_model(),
             "cpu_core_count":  psutil.cpu_count(logical=False),
             "cpu_thread_count": psutil.cpu_count(logical=True),
+            "cpu_max_mhz":     SystemInfoCollector._get_cpu_max_mhz(),
             "total_ram_gb":    round(vm.total / (1024 ** 3), 2),
             "gpu_detected":    1 if gpus else 0,
             "gpus":            gpus,
         }
 
     @staticmethod
-    def _get_host_uuid(hostname: str, mac_int: int) -> str:
-        """Deterministic UUID based on hostname + MAC address.
-        Same machine always produces the same UUID."""
+    def _get_host_uuid(hostname, mac_int):
         fingerprint = f"{hostname}-{mac_int}"
         return str(uuid.uuid5(uuid.NAMESPACE_DNS, fingerprint))
+
+    @staticmethod
+    def _get_cpu_max_mhz():
+        try:
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"HARDWARE\DESCRIPTION\System\CentralProcessor\0"
+            )
+            mhz, _ = winreg.QueryValueEx(key, "~MHz")
+            winreg.CloseKey(key)
+            return int(mhz)
+        except Exception:
+            freq = psutil.cpu_freq()
+            return int(freq.max) if freq else None
 
     @staticmethod
     def _get_cpu_model():
