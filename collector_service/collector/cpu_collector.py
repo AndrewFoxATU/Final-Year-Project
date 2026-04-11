@@ -42,7 +42,6 @@ class CPUCollector:
             "timestamp": datetime.datetime.now().isoformat(),
             "cpu_percent_total": psutil.cpu_percent(interval=None),
             "freq_current_mhz": freq_current,
-            "freq_max_mhz": freq.max if freq else None,
         }
         return cpu_data
 

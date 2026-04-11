@@ -46,7 +46,7 @@ class ExportData(QDialog):
         self.chk_issues.setChecked(bool(current_issues))
         self.chk_issues.setEnabled(bool(current_issues))
 
-        self.chk_metrics = QCheckBox("Collected Metrics  (requires storage backend)")
+        self.chk_metrics = QCheckBox("Collected Metrics  (coming soon)")
         self.chk_metrics.setChecked(False)
         self.chk_metrics.setEnabled(False)
 

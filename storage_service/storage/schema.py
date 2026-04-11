@@ -1,15 +1,12 @@
-# storage_service/schema.py
+# storage_service/storage/schema.py
 # Author: Andrew Fox
 #
 # Usage:
-#   from storage_service.schema import init_db
+#   from storage_service.storage.schema import init_db
 #   conn = init_db("telemetry.db")
-
-from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Union, Optional
 
 SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
@@ -28,6 +25,7 @@ CREATE TABLE IF NOT EXISTS host (
   cpu_model          TEXT,
   cpu_core_count     INTEGER,
   cpu_thread_count   INTEGER,
+  cpu_max_mhz        INTEGER,
   total_ram_gb       REAL,
   gpu_detected       INTEGER NOT NULL DEFAULT 0,
   created_at_iso     TEXT NOT NULL,
@@ -76,8 +74,7 @@ CREATE TABLE IF NOT EXISTS ram_sample (
 CREATE TABLE IF NOT EXISTS cpu_sample (
   sample_id                 INTEGER PRIMARY KEY REFERENCES sample(sample_id) ON DELETE CASCADE,
   cpu_percent_total         REAL NOT NULL,
-  freq_current_mhz          REAL,
-  freq_max_mhz              REAL
+  freq_current_mhz          REAL
 );
 
 
@@ -151,7 +148,7 @@ CREATE INDEX IF NOT EXISTS idx_disk_part_sample_part ON disk_partition_sample(pa
 """
 
 
-def connect(db_path: Union[str, Path]) -> sqlite3.Connection:
+def connect(db_path):
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -168,14 +165,7 @@ def connect(db_path: Union[str, Path]) -> sqlite3.Connection:
     return conn
 
 
-def init_db(
-    db_path: Union[str, Path],
-    *,
-    conn: Optional[sqlite3.Connection] = None
-) -> sqlite3.Connection:
-    """
-    Ensure schema exists. Returns a connection (existing or newly created).
-    """
+def init_db(db_path, conn=None):
     if conn is None:
         conn = connect(db_path)
 
