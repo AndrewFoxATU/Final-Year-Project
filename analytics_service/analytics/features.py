@@ -25,10 +25,9 @@ class FeatureExtractor:
     # Converts a window of raw samples into a flat feature dict for the ML model.
 
     @staticmethod
-    def compute(samples, cpu_max_mhz=None):
+    def compute(samples):
         """
         Takes a list of raw sample dicts (newest first, as returned by get_recent_samples).
-        cpu_max_mhz: boost-aware max clock from host table (overrides per-sample freq_max_mhz).
         Returns a flat feature dict, or None if there are not enough samples.
         """
         if len(samples) < WINDOW_SIZE:
@@ -45,7 +44,6 @@ class FeatureExtractor:
         # -----------------------------
         features["cpu_percent_total"]     = FeatureExtractor._safe(latest, "cpu_percent_total", 0.0)
         features["freq_current_mhz"]      = FeatureExtractor._safe(latest, "freq_current_mhz", 0.0)
-        features["freq_max_mhz"]          = float(cpu_max_mhz) if cpu_max_mhz else 0.0
         features["ram_usage_percent"]     = FeatureExtractor._safe(latest, "ram_usage_percent", 0.0)
         features["swap_usage_percent"]    = FeatureExtractor._safe(latest, "swap_usage_percent", 0.0)
         features["gpu_util_percent"]      = FeatureExtractor._safe(latest, "gpu_util_percent", 0.0)
@@ -89,8 +87,7 @@ if __name__ == "__main__":
     from storage_service.storage.main import StorageManager
     storage = StorageManager()
     samples = storage.get_recent_samples_all_sessions(WINDOW_SIZE)
-    cpu_max_mhz = storage.get_host_cpu_max_mhz()
-    features = FeatureExtractor.compute(samples, cpu_max_mhz=cpu_max_mhz)
+    features = FeatureExtractor.compute(samples)
     if features:
         print("=== Feature Vector ===")
         for key, value in features.items():
