@@ -131,13 +131,13 @@ class TestCPUCollectorEdgeCases:
 
     def test_pdh_unavailable_falls_back_to_psutil(self):
         import collector_service.collector.cpu_collector as mod
-        original = mod._pdh_available
-        mod._pdh_available = False
+        original = mod._pdh_query
+        mod._pdh_query = None
         try:
             data = CPUCollector.get_cpu_data()
             assert data["freq_current_mhz"] is not None or data["freq_current_mhz"] is None
         finally:
-            mod._pdh_available = original
+            mod._pdh_query = original
 
     def test_cpu_percent_not_negative(self):
         data = CPUCollector.get_cpu_data()
