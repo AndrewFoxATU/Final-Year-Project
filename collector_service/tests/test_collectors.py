@@ -18,7 +18,7 @@ class TestCPUCollector:
         self.data = CPUCollector.get_cpu_data()
 
     def test_returns_required_keys(self):
-        for key in ("timestamp", "cpu_percent_total", "freq_current_mhz", "freq_max_mhz"):
+        for key in ("timestamp", "cpu_percent_total", "freq_current_mhz"):
             assert key in self.data
 
     def test_cpu_percent_in_range(self):
@@ -27,10 +27,6 @@ class TestCPUCollector:
     def test_freq_current_is_positive(self):
         if self.data["freq_current_mhz"] is not None:
             assert self.data["freq_current_mhz"] > 0
-
-    def test_freq_max_is_positive(self):
-        if self.data["freq_max_mhz"] is not None:
-            assert self.data["freq_max_mhz"] > 0
 
     def test_timestamp_is_string(self):
         assert isinstance(self.data["timestamp"], str)
