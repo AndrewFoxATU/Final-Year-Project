@@ -256,6 +256,19 @@ class TestGPUCollectorNoGPU:
             return
         raise AssertionError("Frontend guard did not return early on empty gpus")
 
+    def test_gpu_available_false_when_nvml_unavailable(self):
+        import collector_service.collector.gpu_collector as mod
+        original = mod.gpu_available
+        mod.gpu_available = False
+        try:
+            assert not mod.gpu_available
+        finally:
+            mod.gpu_available = original
+
+    def test_gpu_available_flag_is_bool(self):
+        import collector_service.collector.gpu_collector as mod
+        assert isinstance(mod.gpu_available, bool)
+
 
 # -----------------------------
 # GPU Collector

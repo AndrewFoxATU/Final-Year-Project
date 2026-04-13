@@ -21,7 +21,7 @@ from dashboard_service.gui.settings_manager import load_settings
 from collector_service.collector.cpu_collector import CPUCollector
 from collector_service.collector.ram_collector import RAMCollector
 from collector_service.collector.disk_collector import DiskCollector
-from collector_service.collector.gpu_collector import GPUCollector
+from collector_service.collector.gpu_collector import GPUCollector, gpu_available
 
 
 class LiveSystemMonitor(QWidget):
@@ -130,6 +130,9 @@ class LiveSystemMonitor(QWidget):
     # GPU Data Update
     # -----------------------------
     def update_gpu_data(self):
+        if not gpu_available:
+            return
+
         data = GPUCollector.get_gpu_data()
 
         if not data["gpus"]:
