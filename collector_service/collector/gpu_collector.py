@@ -4,6 +4,17 @@
 import datetime
 import pynvml as nvml
 
+# Check once at import time whether NVML (NVIDIA driver) is available.
+# On machines with no NVIDIA GPU this will fail — all callers should check
+# gpu_available before calling get_gpu_data().
+gpu_available = False
+try:
+    nvml.nvmlInit()
+    gpu_available = nvml.nvmlDeviceGetCount() > 0
+    nvml.nvmlShutdown()
+except Exception:
+    gpu_available = False
+
 
 class GPUCollector:
     # Collects raw GPU data suitable for logging and ML analysis.
