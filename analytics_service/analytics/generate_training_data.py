@@ -183,20 +183,22 @@ def scenario_gpu_vram_pressure():
     return fn
 
 
+# Scenarios with no real telemetry examples get more synthetic rows
+# to compensate. Scenarios well-represented in real data keep 500.
 SCENARIOS = [
-    scenario_healthy,
-    scenario_cpu_thermal_throttle,
-    scenario_cpu_bottleneck,
-    scenario_cpu_sustained_high_load,
-    scenario_ram_pressure,
-    scenario_ram_memory_leak,
-    scenario_excessive_swap,
-    scenario_disk_full,
-    scenario_disk_bottleneck,
-    scenario_disk_high_latency,
-    scenario_gpu_overheating,
-    scenario_gpu_power_throttle,
-    scenario_gpu_vram_pressure,
+    (scenario_healthy,                500),
+    (scenario_cpu_thermal_throttle,   800),
+    (scenario_cpu_bottleneck,         500),
+    (scenario_cpu_sustained_high_load, 500),
+    (scenario_ram_pressure,           800),
+    (scenario_ram_memory_leak,        800),
+    (scenario_excessive_swap,         800),
+    (scenario_disk_full,              500),
+    (scenario_disk_bottleneck,        500),
+    (scenario_disk_high_latency,      800),
+    (scenario_gpu_overheating,        800),
+    (scenario_gpu_power_throttle,     800),
+    (scenario_gpu_vram_pressure,      800),
 ]
 
 
@@ -209,11 +211,11 @@ def generate():
     feature_keys = None
     rows = []
 
-    for scenario_fn in SCENARIOS:
+    for scenario_fn, n_samples in SCENARIOS:
         name = scenario_fn.__name__.replace("scenario_", "")
         count = 0
 
-        for _ in range(SAMPLES_PER_SCENARIO):
+        for _ in range(n_samples):
             window = build_window(scenario_fn())
             features = FeatureExtractor.compute(window)
             if features is None:
