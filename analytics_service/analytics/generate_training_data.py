@@ -24,7 +24,7 @@ SAMPLES_PER_SCENARIO = 500
 # -----------------------------
 # Noise helper
 # -----------------------------
-def jitter(value, pct=0.05):
+def jitter(value, pct=0.12):
     """Add small random noise to a value."""
     return value + value * random.uniform(-pct, pct)
 
@@ -58,6 +58,7 @@ def build_window(overrides_fn):
             "write_speed_bytes":    base.get("write_speed_bytes",     0.0),
             "disk_usage_percent":   base.get("disk_usage_percent",    jitter(40.0)),
         }
+        sample = {k: round(v, 2) for k, v in sample.items()}
         window.append(sample)
     # Return newest first (as get_recent_samples returns)
     return list(reversed(window))
@@ -67,17 +68,14 @@ def build_window(overrides_fn):
 # Scenario definitions
 # Each returns a function that builds per-step overrides
 # -----------------------------
-def scenario_healthy():
-    def fn(_):
-        return {}
-    return fn
-
 
 def scenario_cpu_thermal_throttle():
+    start_freq = random.uniform(3000.0, 3600.0)
+    drop_per_step = random.uniform(40.0, 80.0)
     def fn(i):
         return {
-            "cpu_percent_total":  jitter(85.0, 0.05),
-            "freq_current_mhz":   3200.0 - i * 180 + random.uniform(-50, 50),
+            "cpu_percent_total":  jitter(85.0, 0.12),
+            "freq_current_mhz":   start_freq - i * drop_per_step + random.uniform(-30, 30),
         }
     return fn
 
@@ -85,9 +83,9 @@ def scenario_cpu_thermal_throttle():
 def scenario_cpu_bottleneck():
     def fn(i):
         return {
-            "cpu_percent_total":  jitter(95.0, 0.03),
-            "ram_usage_percent":  jitter(45.0, 0.05),
-            "disk_usage_percent": jitter(30.0, 0.05),
+            "cpu_percent_total":  random.uniform(88.0, 100.0),
+            "ram_usage_percent":  jitter(45.0, 0.12),
+            "disk_usage_percent": jitter(30.0, 0.1),
         }
     return fn
 
@@ -95,7 +93,7 @@ def scenario_cpu_bottleneck():
 def scenario_cpu_sustained_high_load():
     def fn(i):
         return {
-            "cpu_percent_total": jitter(88.0, 0.05),
+            "cpu_percent_total": random.uniform(80.0, 100.0),
         }
     return fn
 
@@ -186,15 +184,14 @@ def scenario_gpu_vram_pressure():
 # Scenarios with no real telemetry examples get more synthetic rows
 # to compensate. Scenarios well-represented in real data keep 500.
 SCENARIOS = [
-    (scenario_healthy,                500),
     (scenario_cpu_thermal_throttle,   800),
-    (scenario_cpu_bottleneck,         500),
-    (scenario_cpu_sustained_high_load, 500),
-    (scenario_ram_pressure,           800),
+    (scenario_cpu_bottleneck,         800),
+    (scenario_cpu_sustained_high_load, 600),
+    (scenario_ram_pressure,           600),
     (scenario_ram_memory_leak,        800),
     (scenario_excessive_swap,         800),
-    (scenario_disk_full,              500),
-    (scenario_disk_bottleneck,        500),
+    (scenario_disk_full,              100),
+    (scenario_disk_bottleneck,        700),
     (scenario_disk_high_latency,      800),
     (scenario_gpu_overheating,        800),
     (scenario_gpu_power_throttle,     800),

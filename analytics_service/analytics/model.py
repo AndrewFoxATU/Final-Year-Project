@@ -32,6 +32,13 @@ class PerformanceModel:
 
         row = [features.get(col, 0.0) or 0.0 for col in self._feature_cols]
         predictions = self._model.predict([row])[0]
+        probas = self._model.predict_proba([row])
+
+        # probas[i] is shape (1, 2): [prob_no, prob_yes] for label i
+        probabilities = {
+            label: float(probas[i][0][1])
+            for i, label in enumerate(self._label_names)
+        }
 
         issues = [
             label
@@ -59,6 +66,7 @@ class PerformanceModel:
         return {
             "issues":          issues,
             "component_risks": component_risks,
+            "probabilities":   probabilities,
         }
 
 

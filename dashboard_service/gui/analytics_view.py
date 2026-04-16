@@ -6,6 +6,7 @@
 # Imports
 # -----------------------------
 import csv
+import sqlite3
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
@@ -13,9 +14,122 @@ from PyQt6.QtWidgets import (
     QProgressBar, QScrollArea, QSizePolicy, QPushButton,
     QFileDialog, QDialog, QCheckBox, QMessageBox
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 
 from dashboard_service.gui.settings_manager import load_settings
+from analytics_service.analytics.features import FeatureExtractor, WINDOW_SIZE
+from analytics_service.analytics.labels import LABEL_COMPONENTS
+from analytics_service.analytics.model import PerformanceModel
+
+
+# -----------------------------
+# Issue metadata
+# -----------------------------
+ISSUE_META = {
+    "cpu_thermal_throttle":    ("Thermal Throttling",     "CPU is overheating and reducing clock speed to manage heat."),
+    "cpu_bottleneck":          ("CPU Bottleneck",          "CPU is maxed out and limiting overall system performance."),
+    "cpu_sustained_high_load": ("Sustained High CPU Load", "CPU has been running at high utilisation for a sustained period."),
+    "ram_pressure":            ("RAM Pressure",            "System memory is nearly full. Consider closing unused applications."),
+    "ram_memory_leak":         ("Memory Leak Detected",    "RAM usage is steadily increasing, suggesting a process is leaking memory."),
+    "excessive_swap_usage":    ("Excessive Swap Usage",    "System is heavily using swap space, indicating insufficient RAM."),
+    "disk_full":               ("Disk Nearly Full",        "A disk partition is running out of space."),
+    "disk_bottleneck":         ("Disk I/O Bottleneck",     "Disk throughput is saturated and may be limiting system performance."),
+    "disk_high_latency":       ("High Disk Latency",       "Disk read/write response times are abnormally high."),
+    "gpu_overheating":         ("GPU Overheating",         "GPU temperature is dangerously high. Check cooling and airflow."),
+    "gpu_power_throttle":      ("GPU Power Throttle",      "GPU is hitting its power limit and reducing its clock speed."),
+    "gpu_vram_pressure":       ("VRAM Pressure",           "GPU memory is nearly full, which may cause performance drops."),
+}
+
+_SAMPLE_QUERY = """
+    SELECT
+        c.cpu_percent_total, c.freq_current_mhz,
+        r.ram_usage_percent, r.swap_usage_percent,
+        g.gpu_util_percent, g.gpu_mem_util_percent,
+        g.gpu_temp_c, g.gpu_core_clock_mhz,
+        g.gpu_power_usage_w, g.gpu_power_limit_w,
+        d.avg_read_latency_ms, d.avg_write_latency_ms,
+        d.read_speed_bytes, d.write_speed_bytes,
+        MAX(dp.usage_percent) AS disk_usage_percent
+    FROM sample s
+    LEFT JOIN cpu_sample            c  ON c.sample_id  = s.sample_id
+    LEFT JOIN ram_sample            r  ON r.sample_id  = s.sample_id
+    LEFT JOIN disk_io_sample        d  ON d.sample_id  = s.sample_id
+    LEFT JOIN disk_partition_sample dp ON dp.sample_id = s.sample_id
+    LEFT JOIN gpu_sample            g  ON g.sample_id  = s.sample_id AND g.gpu_id = 0
+    GROUP BY s.sample_id
+    ORDER BY s.ts_unix_ms DESC
+    LIMIT ?
+"""
+
+
+# -----------------------------
+# Analytics Thread
+# -----------------------------
+class AnalyticsThread(QThread):
+
+    status_signal     = pyqtSignal(str, int)   # (status_text, sample_count)
+    prediction_signal = pyqtSignal(dict, list)  # (component_risks 0–1, issues list)
+
+    MIN_SAMPLES = 200
+    INTERVAL_MS = 5000
+
+    def run(self):
+        try:
+            conn = sqlite3.connect("telemetry.db")
+            conn.row_factory = sqlite3.Row
+        except Exception:
+            self.status_signal.emit("DB unavailable", 0)
+            return
+
+        try:
+            model = PerformanceModel()
+        except Exception:
+            self.status_signal.emit("Model not found", 0)
+            conn.close()
+            return
+
+        while not self.isInterruptionRequested():
+            try:
+                count = conn.execute("SELECT COUNT(*) FROM sample").fetchone()[0]
+
+                if count < self.MIN_SAMPLES:
+                    self.status_signal.emit("Collecting\u2026", count)
+                    self.msleep(1000)
+                    continue
+
+                self.status_signal.emit("Ready", count)
+
+                rows = conn.execute(_SAMPLE_QUERY, (WINDOW_SIZE,)).fetchall()
+                samples = [dict(r) for r in rows]
+                features = FeatureExtractor.compute(samples)
+
+                if features is None:
+                    self.msleep(self.INTERVAL_MS)
+                    continue
+
+                result = model.predict(features)
+
+                # Convert 0/1/2 risk levels → 0.0 / 0.5 / 1.0 for progress bars
+                component_risks = {k: v / 2.0 for k, v in result["component_risks"].items()}
+
+                issues = []
+                for label in result["issues"]:
+                    title, description = ISSUE_META.get(label, (label, ""))
+                    issues.append({
+                        "component":   LABEL_COMPONENTS.get(label, "Other"),
+                        "title":       title,
+                        "probability": result["probabilities"].get(label, 1.0),
+                        "description": description,
+                    })
+
+                self.prediction_signal.emit(component_risks, issues)
+
+            except Exception:
+                pass
+
+            self.msleep(self.INTERVAL_MS)
+
+        conn.close()
 
 
 # -----------------------------
@@ -132,6 +246,7 @@ class AnalyticsWidget(QWidget):
         self.session_issues_count = 0
         self.current_issues = []
         self.health_score = 0
+        self._thread = None
 
         # Layout
         outer = QVBoxLayout()
@@ -396,12 +511,28 @@ class AnalyticsWidget(QWidget):
         self.sess_preds_val.setText("0")
         self.sess_flags_val.setText("0")
 
+        self._thread = AnalyticsThread(self)
+        self._thread.status_signal.connect(self.update_status)
+        self._thread.prediction_signal.connect(self.update_predictions)
+        self._thread.start()
+
     def stop(self):
         self.running = False
         self.session_timer.stop()
         self.session_start = None
         self.toggle_btn.setText("Start Analytics")
+        if self._thread is not None:
+            self._thread.requestInterruption()
+            self._thread.wait()
+            self._thread = None
         self.reset_display()
+
+    def shutdown(self):
+        """Called on app close to cleanly stop the thread."""
+        if self._thread is not None:
+            self._thread.requestInterruption()
+            self._thread.wait()
+            self._thread = None
 
     def reset_display(self):
         self.set_kpi(self.card_health, "—", "/ 100")
