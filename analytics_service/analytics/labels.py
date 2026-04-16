@@ -48,7 +48,7 @@ class LabelEngine:
         # Thermal throttle: high CPU load AND frequency actively dropping
         labels["cpu_thermal_throttle"] = (
             f["cpu_percent_total"] > 70 and
-            f["freq_current_mhz_roll_slope"] < -100
+            f["freq_current_mhz_roll_slope"] < -50
         )
 
         # Bottleneck: CPU maxed out but RAM and disk are fine (CPU is the constraint)
@@ -60,7 +60,7 @@ class LabelEngine:
 
         # Sustained high load: CPU has been consistently high over the window
         labels["cpu_sustained_high_load"] = (
-            f["cpu_percent_total_roll_mean"] > 80
+            f["cpu_percent_total_roll_mean"] > 88
         )
 
         # -----------------------------
@@ -75,8 +75,8 @@ class LabelEngine:
 
         # Memory leak: RAM and swap both steadily rising over the window
         labels["ram_memory_leak"] = (
-            f["ram_usage_percent_roll_slope"] > 0.1 and
-            f["swap_usage_percent_roll_slope"] > 0.02
+            f["ram_usage_percent_roll_slope"] > 0.3 and
+            f["swap_usage_percent_roll_slope"] > 0.05
         )
 
         # Excessive swap: system is heavily using swap space

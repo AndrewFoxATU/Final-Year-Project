@@ -98,6 +98,7 @@ class DashboardWindow(QMainWindow):
         self._storage_thread.start()
 
     def closeEvent(self, event):
+        self.analytics_widget.shutdown()
         self._storage_thread.requestInterruption()
         self._storage_thread.wait()
         super().closeEvent(event)

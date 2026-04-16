@@ -17,7 +17,7 @@ class DiskCollector:
     def get_disk_data():
         now = datetime.datetime.now()
         current_io = psutil.disk_io_counters()
-        time_diff = (now - DiskCollector.last_timestamp).total_seconds()
+        time_diff = (now - DiskCollector.last_timestamp).total_seconds() # seconds since last call, used to calculate speeds and latencies
 
         read_speed = 0
         write_speed = 0
