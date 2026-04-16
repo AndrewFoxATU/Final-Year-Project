@@ -75,6 +75,8 @@ class DashboardWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout()
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
         self.central_widget.setLayout(self.main_layout)
 
         # Top bar
@@ -108,22 +110,38 @@ class DashboardWindow(QMainWindow):
     # -----------------------------
     def top_bar(self):
         self.top_bar = QFrame()
+        self.top_bar.setObjectName("topBar")
+        self.top_bar.setFixedHeight(90)
         self.top_layout = QHBoxLayout()
+        self.top_layout.setContentsMargins(20, 0, 20, 0)
         self.top_bar.setLayout(self.top_layout)
         self.main_layout.addWidget(self.top_bar)
 
-        title = QLabel("Smart Dashboard")
-        title.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        self.top_layout.addWidget(title, stretch=1)
+        title_block = QWidget()
+        title_layout = QVBoxLayout()
+        title_layout.setContentsMargins(0, 14, 0, 14)
+        title_layout.setSpacing(2)
+        title_block.setLayout(title_layout)
+
+        label_line = QLabel("Final Year Project  ·  Python  ·  Machine Learning  ·  Desktop Application")
+        label_line.setObjectName("topBarLabel")
+        title = QLabel("Smart System Performance Dashboard")
+        title.setObjectName("topBarTitle")
+        subtitle = QLabel("Real-time hardware monitoring and ML-based fault detection")
+        subtitle.setObjectName("topBarSub")
+        title_layout.addWidget(label_line)
+        title_layout.addWidget(title)
+        title_layout.addWidget(subtitle)
+        self.top_layout.addWidget(title_block, stretch=1)
 
         # Alerts & Settings buttons
         self.alerts_button = QPushButton("Alerts")
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.open_settings)
-        
+
         for button in [self.alerts_button, self.settings_button]:
             button.setObjectName("topButton")
-            button.setFixedSize(80, 40)
+            button.setFixedSize(80, 36)
             self.top_layout.addWidget(button)
 
     # -----------------------------
@@ -132,6 +150,8 @@ class DashboardWindow(QMainWindow):
     def content_area(self):
         self.content_frame = QFrame()
         self.content_layout = QVBoxLayout()
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setSpacing(0)
         self.content_frame.setLayout(self.content_layout)
         self.main_layout.addWidget(self.content_frame, stretch=1)
 
@@ -148,8 +168,6 @@ class DashboardWindow(QMainWindow):
         self.content_widgets = {
             "Live System Monitoring": self.live_monitor_widget,
             "Analytics": self.analytics_widget,
-            "RAM Cleaner": QLabel("RAM Cleaner Panel"),
-            "Performance Mode": QLabel("Performance Mode Panel")
         }
 
         # Add each widget to the content layout
@@ -164,6 +182,7 @@ class DashboardWindow(QMainWindow):
     # -----------------------------
     def bottom_bar(self):
         self.bottom_bar = QFrame()
+        self.bottom_bar.setObjectName("bottomBar")
         self.bottom_layout = QHBoxLayout()
         self.bottom_bar.setLayout(self.bottom_layout)
         self.main_layout.addWidget(self.bottom_bar)
@@ -171,14 +190,10 @@ class DashboardWindow(QMainWindow):
         # Navigation buttons
         self.live_button = QPushButton("Live System Monitoring")
         self.analytics_button = QPushButton("Analytics")
-        self.ram_button = QPushButton("RAM Cleaner")
-        self.performance_button = QPushButton("Performance Mode")
 
         self.bottom_buttons = [
             self.live_button,
             self.analytics_button,
-            self.ram_button,
-            self.performance_button
         ]
 
         for button in self.bottom_buttons:
@@ -199,8 +214,6 @@ class DashboardWindow(QMainWindow):
         mapping = {
             "Live System Monitoring": self.live_button,
             "Analytics": self.analytics_button,
-            "RAM Cleaner": self.ram_button,
-            "Performance Mode": self.performance_button
         }
         self.set_active_button(mapping[mode_name])
 
@@ -300,7 +313,14 @@ class SettingsWindow(QDialog):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # Load Inter font
+    # Load Inter font (Regular + Bold weights so font-weight: bold renders correctly)
+    for font_file in [
+        "dashboard_service/assets/fonts/Inter/Inter_28pt-Regular.ttf",
+        "dashboard_service/assets/fonts/Inter/Inter_28pt-Bold.ttf",
+        "dashboard_service/assets/fonts/Inter/Inter_28pt-ExtraBold.ttf",
+    ]:
+        QFontDatabase.addApplicationFont(font_file)
+
     font_id = QFontDatabase.addApplicationFont(
         "dashboard_service/assets/fonts/Inter/Inter_28pt-Regular.ttf"
     )

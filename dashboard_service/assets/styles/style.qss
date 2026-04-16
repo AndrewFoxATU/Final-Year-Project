@@ -2,50 +2,72 @@
    GLOBAL APP STYLES
 -------------------------------------------------- */
 QMainWindow {
-    background-color: #1e1e1e;      /* Dark neutral background */
-    color: #e0e0e0;
+    background-color: #EEEEEE;
+    color: #222831;
     font-size: 14px;
 }
 
-/* General Labels */
 QLabel {
-    color: #f0f0f0;
+    color: #222831;
 }
 
 /* --------------------------------------------------
    TOP BAR
 -------------------------------------------------- */
+QFrame#topBar {
+    background-color: #222831;
+    border-bottom: 3px solid ACCENT_COLOUR;
+}
+
+QLabel#topBarLabel {
+    color: ACCENT_COLOUR;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+QLabel#topBarTitle {
+    color: #EEEEEE;
+    font-size: 22px;
+    font-weight: 800;
+}
+
+QLabel#topBarSub {
+    color: #9ca3af;
+    font-size: 11px;
+}
+
 #topButton {
-    background-color: #333333;
-    color: white;
-    border: 1px solid #555555;
+    background-color: #393E46;
+    color: #EEEEEE;
+    border: 1px solid #4a5058;
     border-radius: 8px;
     font-weight: 500;
 }
 
 #topButton:hover {
-    background-color: #444444;
+    background-color: #4a5058;
 }
 
 #topButton:pressed {
-    background-color: #555555;
+    background-color: #555b63;
 }
 
 /* --------------------------------------------------
-   SECTION FRAMES (CPU, GPU, RAM, STORAGE)
+   SECTION FRAMES
 -------------------------------------------------- */
 #sectionFrame {
-    border: 2px solid #555555;
-    border-radius: 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     padding: 10px;
-    background-color: #2a2a2a;
+    background-color: #ffffff;
 }
 
 #sectionFrame:hover {
-    border: 3px solid #888888;
+    border: 1px solid #d1d5db;
 }
 
-/* Section Titles */
 #sectionFrame QLabel {
     font-size: 13px;
 }
@@ -53,40 +75,44 @@ QLabel {
 QLabel#metricSectionTitle {
     font-size: 13px;
     font-weight: bold;
-    color: #e0e0e0;
+    color: #222831;
     margin-bottom: 4px;
 }
 
 QLabel#metricFieldName {
     font-size: 12px;
-    color: #ffffff;
+    color: #393E46;
 }
 
 QLabel#metricValue {
     font-size: 12px;
-    color: #e0e0e0;
+    color: #222831;
     font-weight: bold;
 }
 
 /* --------------------------------------------------
    BOTTOM NAVIGATION BAR
 -------------------------------------------------- */
+QFrame#bottomBar {
+    background-color: #222831;
+    border-top: 1px solid #393E46;
+}
+
 #bottomButton {
-    background-color: #2b2b2b;
-    color: #cccccc;
+    background-color: transparent;
+    color: #9ca3af;
     border: none;
     border-top: 2px solid transparent;
     font-weight: 500;
 }
 
 #bottomButton:hover {
-    background-color: #3a3a3a;
-    color: white;
+    background-color: rgba(255, 255, 255, 10);
+    color: #EEEEEE;
 }
 
-/* Active Button */
 #bottomButton[active="true"] {
-    background-color: #444444;
+    background-color: #393E46;
     color: #ffffff;
     border-top: 2px solid ACCENT_COLOUR;
 }
@@ -95,39 +121,41 @@ QLabel#metricValue {
    SETTINGS WINDOW
 -------------------------------------------------- */
 QDialog {
-    background-color: #2e2e2e;
-    color: #ffffff;
-    border-radius: 10px;
+    background-color: #ffffff;
+    color: #222831;
 }
 
 QSpinBox {
-    background-color: #3a3a3a;
-    color: white;
+    background-color: #f9fafb;
+    color: #222831;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 3px;
 }
 
 QPushButton {
-    background-color: #444444;
-    color: white;
-    border: 1px solid #666666;
+    background-color: #222831;
+    color: #EEEEEE;
+    border: 1px solid #393E46;
     border-radius: 6px;
     padding: 5px 10px;
 }
 
 QPushButton:hover {
-    background-color: #555555;
+    background-color: #393E46;
 }
 
 QPushButton:pressed {
-    background-color: #666666;
+    background-color: #4a5058;
 }
 
 /* --------------------------------------------------
-   GRAPH HOVER LABELS (CPU/RAM/GPU/etc.)
+   GRAPH HOVER LABELS
 -------------------------------------------------- */
 QLabel#hoverLabel {
-    background-color: rgba(0, 0, 0, 190);
-    color: white;
-    border: 1px solid #aaaaaa;
+    background-color: rgba(34, 40, 49, 210);
+    color: #EEEEEE;
+    border: 1px solid #393E46;
     padding: 3px;
     border-radius: 4px;
 }
@@ -136,8 +164,8 @@ QLabel#hoverLabel {
    PROGRESS BARS
 -------------------------------------------------- */
 QProgressBar {
-    background-color: #3a3a3a;
-    border: 1px solid #555555;
+    background-color: #e5e7eb;
+    border: 1px solid #d1d5db;
     border-radius: 4px;
 }
 
@@ -150,21 +178,21 @@ QProgressBar::chunk {
    CHECKBOXES
 -------------------------------------------------- */
 QCheckBox {
-    color: #e0e0e0;
+    color: #222831;
     font-size: 13px;
     spacing: 6px;
 }
 
 QCheckBox:disabled {
-    color: #555555;
+    color: #9ca3af;
 }
 
 QCheckBox::indicator {
     width: 14px;
     height: 14px;
-    border: 1px solid #555555;
+    border: 1px solid #d1d5db;
     border-radius: 3px;
-    background-color: #3a3a3a;
+    background-color: #f9fafb;
 }
 
 QCheckBox::indicator:checked {
@@ -173,24 +201,22 @@ QCheckBox::indicator:checked {
 }
 
 QCheckBox::indicator:disabled {
-    background-color: #2a2a2a;
-    border-color: #3a3a3a;
+    background-color: #e5e7eb;
+    border-color: #d1d5db;
 }
 
 /* --------------------------------------------------
    BUTTONS — DISABLED STATE
 -------------------------------------------------- */
 QPushButton:disabled {
-    color: #777777;
-    background-color: #333333;
-    border-color: #444444;
+    color: #9ca3af;
+    background-color: #e5e7eb;
+    border-color: #d1d5db;
 }
 
 /* --------------------------------------------------
    ANALYTICS TAB
 -------------------------------------------------- */
-
-/* Accent button (Start/Stop toggle, Export confirm button) */
 #accentButton {
     background-color: ACCENT_COLOUR;
     color: #ffffff;
@@ -201,21 +227,20 @@ QPushButton:disabled {
 
 #accentButton:hover {
     background-color: ACCENT_COLOUR;
-    border: 1px solid rgba(255, 255, 255, 60);
+    border: 1px solid rgba(0, 0, 0, 30);
 }
 
 #accentButton:pressed {
-    border: 1px solid rgba(255, 255, 255, 30);
+    border: 1px solid rgba(0, 0, 0, 60);
 }
 
-/* Analytics page title */
 QLabel#analyticsTitle {
     font-size: 15px;
+    color: #222831;
 }
 
-/* KPI stat cards */
 QLabel#statCardTitle {
-    color: #888888;
+    color: #6b7280;
     font-size: 12px;
 }
 
@@ -226,38 +251,35 @@ QLabel#statCardValue {
 }
 
 QLabel#statCardSub {
-    color: #aaaaaa;
+    color: #9ca3af;
     font-size: 12px;
 }
 
-/* Section card header label */
 QLabel#cardHeader {
     font-size: 14px;
+    color: #222831;
 }
 
-/* Session stats bar */
 QLabel#sessionLabel {
-    color: #888888;
+    color: #6b7280;
     font-size: 11px;
 }
 
 QLabel#sessionValue {
-    color: #e0e0e0;
+    color: #222831;
     font-size: 13px;
     font-weight: bold;
 }
 
 QFrame#sessionDivider {
-    color: #444444;
+    color: #d1d5db;
 }
 
-/* Risk bar row */
 QLabel#riskLabel {
-    color: #cccccc;
+    color: #393E46;
     font-size: 13px;
 }
 
-/* Issue cards */
 QLabel#issueBadge {
     background-color: ACCENT_COLOUR;
     color: #ffffff;
@@ -275,15 +297,14 @@ QLabel#issueProb {
 
 QLabel#issueDesc {
     font-size: 12px;
-    color: #aaaaaa;
+    color: #6b7280;
 }
 
 QLabel#noIssuesLabel {
-    color: #666666;
+    color: #9ca3af;
     font-size: 13px;
 }
 
-/* Scroll area transparency */
 QScrollArea {
     background: transparent;
     border: none;

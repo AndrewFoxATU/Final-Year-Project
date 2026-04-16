@@ -292,7 +292,7 @@ class LiveSystemMonitor(QWidget):
         info_layout.addStretch()
 
         plot_widget = pg.PlotWidget()
-        plot_widget.setBackground("#2a2a2a")
+        plot_widget.setBackground("#ffffff")
         plot_widget.setYRange(0, 100)
         plot_widget.setMouseEnabled(x=False, y=False)
         plot_widget.setMenuEnabled(False)
@@ -307,7 +307,7 @@ class LiveSystemMonitor(QWidget):
         # Graph Curve
         initial_x = list(range(50))
         initial_y = [0] * 50
-        curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=2))
+        curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=3))
 
 
         hover_dot = pg.ScatterPlotItem(size=10, brush=pg.mkBrush(self.accent_colour), pen=pg.mkPen('k'))
@@ -336,7 +336,7 @@ class LiveSystemMonitor(QWidget):
         # Two curves for Storage
         if name == "Storage":
             frame.read_curve = curve
-            frame.write_curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=2))
+            frame.write_curve = plot_widget.plot(initial_x, initial_y, pen=pg.mkPen(self.accent_colour, width=3))
             frame.read_data = [0] * 50
             frame.write_data = [0] * 50
 

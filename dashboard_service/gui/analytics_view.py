@@ -11,7 +11,7 @@ from datetime import datetime
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QProgressBar, QScrollArea, QSizePolicy, QPushButton,
+    QScrollArea, QSizePolicy, QPushButton,
     QFileDialog, QDialog, QCheckBox, QMessageBox
 )
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
@@ -256,17 +256,7 @@ class AnalyticsWidget(QWidget):
 
         outer.addWidget(self.create_header())
         outer.addWidget(self.create_kpi_row())
-
-        left_col = QVBoxLayout()
-        left_col.setSpacing(12)
-        left_col.addWidget(self.create_session_bar())
-        left_col.addWidget(self.create_component_risk(), stretch=1)
-
-        row2 = QHBoxLayout()
-        row2.setSpacing(12)
-        row2.addLayout(left_col, stretch=2)
-        row2.addWidget(self.create_issues_panel(), stretch=3)
-        outer.addLayout(row2, stretch=1)
+        outer.addWidget(self.create_issues_panel(), stretch=1)
 
         # Timers
         self.session_timer = QTimer()
@@ -340,16 +330,14 @@ class AnalyticsWidget(QWidget):
         row.setLayout(layout)
 
         self.card_health = self.create_kpi_card("System Health Score")
-        self.card_last_trained = self.create_kpi_card("Last Trained")
         self.card_status = self.create_kpi_card("Model Status")
 
         self.set_kpi(self.card_health, "—", "/ 100")
-        self.set_kpi(self.card_last_trained, "Never")
         self.set_kpi(self.card_status, "Stopped")
 
-        layout.addWidget(self.card_health)
-        layout.addWidget(self.card_last_trained)
-        layout.addWidget(self.card_status)
+        layout.addWidget(self.card_health, stretch=1)
+        layout.addWidget(self.create_session_bar(), stretch=3)
+        layout.addWidget(self.card_status, stretch=1)
 
         return row
 
@@ -399,55 +387,6 @@ class AnalyticsWidget(QWidget):
         layout.addSpacing(16)
         layout.addWidget(block_flags, stretch=1)
 
-        return frame
-
-    # -----------------------------
-    # Create Component Risk
-    # -----------------------------
-    def create_component_risk(self):
-        frame = QFrame()
-        frame.setObjectName("sectionFrame")
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(10)
-        frame.setLayout(layout)
-
-        header = QLabel("<b>Component Risk</b>")
-        header.setObjectName("cardHeader")
-        layout.addWidget(header)
-
-        self.risk_bars = {}
-        self.risk_pct_labels = {}
-
-        for component in ("CPU", "RAM", "GPU", "Disk"):
-            row = QHBoxLayout()
-            row.setContentsMargins(0, 0, 0, 0)
-            row.setSpacing(12)
-
-            name_lbl = QLabel(component)
-            name_lbl.setFixedWidth(55)
-            name_lbl.setObjectName("riskLabel")
-
-            bar = QProgressBar()
-            bar.setRange(0, 100)
-            bar.setValue(0)
-            bar.setTextVisible(False)
-            bar.setFixedHeight(18)
-
-            pct_lbl = QLabel("0%")
-            pct_lbl.setFixedWidth(38)
-            pct_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-
-            row.addWidget(name_lbl)
-            row.addWidget(bar, stretch=1)
-            row.addWidget(pct_lbl)
-            layout.addLayout(row)
-
-            self.risk_bars[component] = bar
-            self.risk_pct_labels[component] = pct_lbl
-
-        layout.addStretch()
         return frame
 
     # -----------------------------
@@ -536,14 +475,10 @@ class AnalyticsWidget(QWidget):
 
     def reset_display(self):
         self.set_kpi(self.card_health, "—", "/ 100")
-        self.set_kpi(self.card_last_trained, "Never")
         self.set_kpi(self.card_status, "Stopped")
         self.sess_time_val.setText("—")
         self.sess_preds_val.setText("—")
         self.sess_flags_val.setText("—")
-        for component in self.risk_bars:
-            self.risk_bars[component].setValue(0)
-            self.risk_pct_labels[component].setText("0%")
         self.current_issues = []
         self.export_btn.setEnabled(False)
         self.clear_issues()
@@ -618,11 +553,6 @@ class AnalyticsWidget(QWidget):
         else:
             self.set_kpi(self.card_status, status_text, f"{sample_count} / {self.MIN_SAMPLES_REQUIRED} samples")
 
-    def update_last_trained(self, timestamp_str):
-        if not self.running:
-            return
-        self.set_kpi(self.card_last_trained, timestamp_str)
-
     def update_predictions(self, component_risks, issues):
         if not self.running:
             return
@@ -637,11 +567,6 @@ class AnalyticsWidget(QWidget):
         overall = max(component_risks.values(), default=0.0)
         self.health_score = int((1.0 - overall) * 100)
         self.set_kpi(self.card_health, str(self.health_score), "/ 100")
-
-        for component in self.risk_bars:
-            pct = int(component_risks.get(component, 0.0) * 100)
-            self.risk_bars[component].setValue(pct)
-            self.risk_pct_labels[component].setText(f"{pct}%")
 
         self.clear_issues()
         if not issues:
