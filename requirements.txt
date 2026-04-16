@@ -17,8 +17,11 @@ python-dotenv==1.0.1 # python-dotenv enables configuration via .env files.
 loguru==0.7.2 # loguru provides elegant, structured logging with rotation.
 
 
-# === Data Handling (Lightweight) === 
-numpy==2.1.2 # numpy for numeric calculations and array handling.
+# === Data Handling & ML ===
+numpy==2.1.2       # numpy for numeric calculations and array handling.
+pandas==3.0.2      # pandas for loading and manipulating training data CSV.
+scikit-learn==1.8.0 # scikit-learn provides the Random Forest classifier and evaluation tools.
+matplotlib==3.10.1  # matplotlib for visualising model performance and training data.
 
 # === Testing ===
 pytest==9.0.2 # pytest is the testing framework used for unit and integration tests.
