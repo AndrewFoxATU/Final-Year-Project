@@ -9,7 +9,7 @@
 import pickle
 from pathlib import Path
 
-from analytics_service.analytics.labels import LABEL_COMPONENTS
+from analytics_service.analytics.labels import LABEL_COMPONENTS, LABEL_SEVERITY
 
 MODEL_PATH = Path("analytics_service/data/model.pkl")
 
@@ -46,27 +46,32 @@ class PerformanceModel:
             if fired
         ]
 
-        # Count how many labels fired per component (CPU, RAM, Disk, GPU)
-        component_counts = {}
+        # Component risk = highest severity among fired labels for that component (0 if none)
+        component_risks = {c: 0 for c in set(LABEL_COMPONENTS.values())}
         for label in issues:
             component = LABEL_COMPONENTS.get(label, "Other")
-            component_counts[component] = component_counts.get(component, 0) + 1
+            component_risks[component] = max(
+                component_risks.get(component, 0),
+                LABEL_SEVERITY.get(label, 1),
+            )
 
-        # Map count to risk level: 0 = healthy, 1 = warning, 2 = critical
-        component_risks = {}
-        for component in set(LABEL_COMPONENTS.values()):
-            count = component_counts.get(component, 0)
-            if count == 0:
-                component_risks[component] = 0
-            elif count == 1:
-                component_risks[component] = 1
-            else:
-                component_risks[component] = 2
+        # Steep exponential penalty curve — low severities barely register,
+        # high severities dominate the score:
+        #   sev 1 →  2 pts   sev 2 →  5 pts   sev 3 → 15 pts
+        #   sev 4 → 35 pts   sev 5 → 60 pts
+        # Each penalty is scaled by the model's confidence for that issue.
+        _PENALTY = {1: 2, 2: 5, 3: 15, 4: 35, 5: 60}
+        penalty = sum(
+            _PENALTY.get(LABEL_SEVERITY.get(label, 1), 2) * probabilities.get(label, 1.0)
+            for label in issues
+        )
+        health_score = max(0, min(100, round(100 - penalty)))
 
         return {
             "issues":          issues,
             "component_risks": component_risks,
             "probabilities":   probabilities,
+            "health_score":    health_score,
         }
 
 

@@ -93,7 +93,7 @@ _SAMPLE_QUERY = """
 class AnalyticsThread(QThread):
 
     status_signal     = pyqtSignal(str, int)   # (status_text, sample_count)
-    prediction_signal = pyqtSignal(dict, list)  # (component_risks 0–1, issues list)
+    prediction_signal = pyqtSignal(list, int)  # (issues list, health_score)
 
     MIN_SAMPLES = 200
     INTERVAL_MS = 5000
@@ -142,9 +142,6 @@ class AnalyticsThread(QThread):
 
                 result = model.predict(features)
 
-                # Convert 0/1/2 risk levels → 0.0 / 0.5 / 1.0 for progress bars
-                component_risks = {k: v / 2.0 for k, v in result["component_risks"].items()}
-
                 fired_set = set(result["issues"])
                 issues = []
                 for label, (title, description, fix) in ISSUE_META.items():
@@ -157,7 +154,7 @@ class AnalyticsThread(QThread):
                         "fired":       label in fired_set,
                     })
 
-                self.prediction_signal.emit(component_risks, issues)
+                self.prediction_signal.emit(issues, result["health_score"])
 
             except Exception:
                 pass
@@ -673,7 +670,7 @@ class AnalyticsWidget(QWidget):
         else:
             self.set_kpi(self.card_status, status_text, f"{sample_count} / {self.MIN_SAMPLES_REQUIRED} samples")
 
-    def update_predictions(self, component_risks, issues):
+    def update_predictions(self, issues, health_score):
         if not self.running:
             return
 
@@ -697,8 +694,7 @@ class AnalyticsWidget(QWidget):
         self.sess_flags_val.setText(f"{self.session_issues_count:,}")
         self.export_btn.setEnabled(True)
 
-        overall = max(component_risks.values(), default=0.0)
-        self.health_score = int((1.0 - overall) * 100)
+        self.health_score = health_score
         self.set_kpi(self.card_health, str(self.health_score), "/ 100")
 
         self.clear_issues()

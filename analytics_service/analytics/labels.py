@@ -27,6 +27,27 @@ LABEL_COMPONENTS = {
 
 LABEL_NAMES = list(LABEL_COMPONENTS.keys())
 
+# Severity of each issue on a 1–5 scale:
+#   5 = critical  (hardware damage / total failure imminent)
+#   4 = serious   (will cause system crash or hardware risk without intervention)
+#   3 = warning   (significant performance impact or resource exhaustion approaching)
+#   2 = minor     (elevated load, worth monitoring but not immediately harmful)
+#   1 = info      (informational only)
+LABEL_SEVERITY = {
+    "cpu_thermal_throttle":    4,  # hardware damage risk, frequency actively dropping
+    "cpu_bottleneck":          3,  # CPU is the hard constraint on the whole system
+    "cpu_sustained_high_load": 2,  # high but not yet bottlenecking or throttling
+    "ram_pressure":            3,  # apps may start OOM-crashing soon
+    "ram_memory_leak":         4,  # will exhaust memory entirely; requires restart
+    "excessive_swap_usage":    3,  # system is swapping heavily, major perf hit
+    "disk_full":               4,  # writes will fail; data loss / crash risk (recoverable)
+    "disk_bottleneck":         2,  # high I/O throughput but no hardware risk
+    "disk_high_latency":       3,  # slow I/O, cascading delays across the system
+    "gpu_overheating":         5,  # GPU may throttle, shut down, or be damaged
+    "gpu_power_throttle":      3,  # GPU clock actively dropping due to power cap
+    "gpu_vram_pressure":       3,  # VRAM nearly full, GPU OOM errors likely
+}
+
 
 class LabelEngine:
     # Applies domain-knowledge rules to a feature dict to produce 12 boolean labels.
