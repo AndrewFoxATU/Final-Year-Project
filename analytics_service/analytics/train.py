@@ -39,11 +39,11 @@ def train():
 
     print("\nTraining Random Forest...")
     base = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=None,
-        min_samples_leaf=2,
-        random_state=42,
-        n_jobs=-1,
+        n_estimators=200, # number of trees in the forest
+        max_depth=None, # grow until pure or min_samples_leaf
+        min_samples_leaf=2, # minimum samples per leaf to prevent overfitting
+        random_state=42, # for reproducibility
+        n_jobs=-1, # use all CPU cores for training
     )
     model = MultiOutputClassifier(base, n_jobs=-1)
     model.fit(X_train, y_train)
@@ -53,10 +53,10 @@ def train():
 
     for i, label in enumerate(LABEL_NAMES):
         report = classification_report(
-            y_test[:, i], y_pred[:, i],
-            target_names=["no", "yes"],
-            zero_division=0,
-            output_dict=True,
+            y_test[:, i], y_pred[:, i], # true vs predicted for this label
+            target_names=["no", "yes"], # label classes
+            zero_division=0, # avoid divide-by-zero errors in metrics
+            output_dict=True, # return report as dict for easy access to precision/recall/f1
         )
         precision = report["yes"]["precision"]
         recall    = report["yes"]["recall"]

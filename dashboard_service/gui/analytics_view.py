@@ -26,18 +26,42 @@ from analytics_service.analytics.model import PerformanceModel
 # Issue metadata
 # -----------------------------
 ISSUE_META = {
-    "cpu_thermal_throttle":    ("Thermal Throttling",     "CPU is overheating and reducing clock speed to manage heat."),
-    "cpu_bottleneck":          ("CPU Bottleneck",          "CPU is maxed out and limiting overall system performance."),
-    "cpu_sustained_high_load": ("Sustained High CPU Load", "CPU has been running at high utilisation for a sustained period."),
-    "ram_pressure":            ("RAM Pressure",            "System memory is nearly full. Consider closing unused applications."),
-    "ram_memory_leak":         ("Memory Leak Detected",    "RAM usage is steadily increasing, suggesting a process is leaking memory."),
-    "excessive_swap_usage":    ("Excessive Swap Usage",    "System is heavily using swap space, indicating insufficient RAM."),
-    "disk_full":               ("Disk Nearly Full",        "A disk partition is running out of space."),
-    "disk_bottleneck":         ("Disk I/O Bottleneck",     "Disk throughput is saturated and may be limiting system performance."),
-    "disk_high_latency":       ("High Disk Latency",       "Disk read/write response times are abnormally high."),
-    "gpu_overheating":         ("GPU Overheating",         "GPU temperature is dangerously high. Check cooling and airflow."),
-    "gpu_power_throttle":      ("GPU Power Throttle",      "GPU is hitting its power limit and reducing its clock speed."),
-    "gpu_vram_pressure":       ("VRAM Pressure",           "GPU memory is nearly full, which may cause performance drops."),
+    "cpu_thermal_throttle":    ("Thermal Throttling",
+                                "Your CPU is getting too hot and slowing itself down to prevent damage.",
+                                "Check that your PC vents are clear and all fans are spinning. Cleaning out dust from the heatsink usually helps."),
+    "cpu_bottleneck":          ("CPU Bottleneck",
+                                "Your CPU is running at full capacity and holding back the rest of your system.",
+                                "Open Task Manager and close any programs using a lot of CPU that you don't need."),
+    "cpu_sustained_high_load": ("Sustained High CPU Load",
+                                "Your CPU has been under heavy load for an extended period with no relief.",
+                                "Check Task Manager for a process consuming excessive CPU and close or restart it if possible."),
+    "ram_pressure":            ("RAM Pressure",
+                                "Your system is almost out of memory.",
+                                "Close applications you are not actively using. If this happens regularly, consider upgrading your RAM."),
+    "ram_memory_leak":         ("Memory Leak Detected",
+                                "A running program appears to be gradually consuming more and more memory without releasing it.",
+                                "Restart the application that is growing in memory usage. Check for available updates, as this is often a software bug."),
+    "excessive_swap_usage":    ("Excessive Swap Usage",
+                                "Your system has run out of RAM and is using your disk as overflow memory, which is much slower.",
+                                "Close unused applications to free up RAM. Adding more physical RAM is the permanent fix."),
+    "disk_full":               ("Disk Nearly Full",
+                                "One of your drives is almost out of storage space.",
+                                "Delete files you no longer need and empty the Recycle Bin. Moving files to an external drive also helps."),
+    "disk_bottleneck":         ("Disk I/O Bottleneck",
+                                "Your disk is being pushed to its maximum read or write speed, causing slowdowns.",
+                                "Avoid running multiple large file operations at the same time. Upgrading to an SSD will significantly improve this."),
+    "disk_high_latency":       ("High Disk Latency",
+                                "Your disk is taking longer than normal to respond to requests.",
+                                "Run a disk health check using Windows tools. On older hard drives this can be an early warning sign — back up your data soon."),
+    "gpu_overheating":         ("GPU Overheating",
+                                "Your graphics card is running at a dangerously high temperature.",
+                                "Make sure your PC case has good airflow and clean dust from the GPU fans. Lowering graphics settings will also reduce heat."),
+    "gpu_power_throttle":      ("GPU Power Throttle",
+                                "Your GPU is hitting its power limit and reducing its performance to stay within it.",
+                                "Ensure your power supply is adequate for your GPU. You can also check GPU power limit settings in your driver software."),
+    "gpu_vram_pressure":       ("VRAM Pressure",
+                                "Your graphics card is almost out of video memory.",
+                                "Lower texture quality or resolution in your application. Closing other GPU-intensive programs will free up VRAM."),
 }
 
 _SAMPLE_QUERY = """
@@ -56,6 +80,7 @@ _SAMPLE_QUERY = """
     LEFT JOIN disk_io_sample        d  ON d.sample_id  = s.sample_id
     LEFT JOIN disk_partition_sample dp ON dp.sample_id = s.sample_id
     LEFT JOIN gpu_sample            g  ON g.sample_id  = s.sample_id AND g.gpu_id = 0
+    WHERE s.session_id = ?
     GROUP BY s.sample_id
     ORDER BY s.ts_unix_ms DESC
     LIMIT ?
@@ -88,9 +113,17 @@ class AnalyticsThread(QThread):
             conn.close()
             return
 
+        session_id = conn.execute("SELECT MAX(session_id) FROM session").fetchone()[0]
+        if session_id is None:
+            self.status_signal.emit("No session", 0)
+            conn.close()
+            return
+
         while not self.isInterruptionRequested():
             try:
-                count = conn.execute("SELECT COUNT(*) FROM sample").fetchone()[0]
+                count = conn.execute(
+                    "SELECT COUNT(*) FROM sample WHERE session_id = ?", (session_id,)
+                ).fetchone()[0]
 
                 if count < self.MIN_SAMPLES:
                     self.status_signal.emit("Collecting\u2026", count)
@@ -99,7 +132,7 @@ class AnalyticsThread(QThread):
 
                 self.status_signal.emit("Ready", count)
 
-                rows = conn.execute(_SAMPLE_QUERY, (WINDOW_SIZE,)).fetchall()
+                rows = conn.execute(_SAMPLE_QUERY, (session_id, WINDOW_SIZE)).fetchall()
                 samples = [dict(r) for r in rows]
                 features = FeatureExtractor.compute(samples)
 
@@ -112,14 +145,16 @@ class AnalyticsThread(QThread):
                 # Convert 0/1/2 risk levels → 0.0 / 0.5 / 1.0 for progress bars
                 component_risks = {k: v / 2.0 for k, v in result["component_risks"].items()}
 
+                fired_set = set(result["issues"])
                 issues = []
-                for label in result["issues"]:
-                    title, description = ISSUE_META.get(label, (label, ""))
+                for label, (title, description, fix) in ISSUE_META.items():
                     issues.append({
                         "component":   LABEL_COMPONENTS.get(label, "Other"),
                         "title":       title,
-                        "probability": result["probabilities"].get(label, 1.0),
+                        "probability": result["probabilities"].get(label, 0.0),
                         "description": description,
+                        "fix":         fix,
+                        "fired":       label in fired_set,
                     })
 
                 self.prediction_signal.emit(component_risks, issues)
@@ -130,6 +165,87 @@ class AnalyticsThread(QThread):
             self.msleep(self.INTERVAL_MS)
 
         conn.close()
+
+
+# -----------------------------
+# Alerts Dialog
+# -----------------------------
+class AlertsDialog(QDialog):
+
+    def __init__(self, alert_log, parent=None):
+        super().__init__(parent)
+        self.alert_log = alert_log
+
+        self.setWindowTitle("Alert Log")
+        self.setMinimumWidth(520)
+        self.setMinimumHeight(420)
+        self.setModal(True)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+        self.setLayout(layout)
+
+        header_row = QHBoxLayout()
+        header_lbl = QLabel("<b>Alert Log</b>")
+        header_lbl.setObjectName("cardHeader")
+        count_lbl = QLabel(f"{len(alert_log)} alert(s) this session")
+        count_lbl.setObjectName("statCardSub")
+        count_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        header_row.addWidget(header_lbl, stretch=1)
+        header_row.addWidget(count_lbl)
+        layout.addLayout(header_row)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+
+        container = QWidget()
+        container.setObjectName("issuesContainer")
+        inner = QVBoxLayout()
+        inner.setContentsMargins(0, 0, 0, 0)
+        inner.setSpacing(6)
+        inner.setAlignment(Qt.AlignmentFlag.AlignTop)
+        container.setLayout(inner)
+
+        if not alert_log:
+            empty = QLabel("No alerts logged this session.")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty.setObjectName("noIssuesLabel")
+            inner.addWidget(empty)
+        else:
+            for entry in reversed(alert_log):
+                row_frame = QFrame()
+                row_frame.setObjectName("sectionFrame")
+                row_layout = QHBoxLayout()
+                row_layout.setContentsMargins(10, 6, 10, 6)
+                row_layout.setSpacing(10)
+                row_frame.setLayout(row_layout)
+
+                time_lbl = QLabel(entry["time"].strftime("%H:%M:%S"))
+                time_lbl.setObjectName("sessionLabel")
+                time_lbl.setFixedWidth(60)
+
+                badge = QLabel(entry["component"])
+                badge.setFixedWidth(55)
+                badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                badge.setObjectName("issueBadge")
+
+                title_lbl = QLabel(entry["title"])
+
+                prob_lbl = QLabel(f"{entry['probability']:.0%}")
+                prob_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                prob_lbl.setObjectName("issueProb")
+
+                row_layout.addWidget(time_lbl)
+                row_layout.addWidget(badge)
+                row_layout.addWidget(title_lbl, stretch=1)
+                row_layout.addWidget(prob_lbl)
+
+                inner.addWidget(row_frame)
+
+        scroll.setWidget(container)
+        layout.addWidget(scroll, stretch=1)
 
 
 # -----------------------------
@@ -247,6 +363,8 @@ class AnalyticsWidget(QWidget):
         self.current_issues = []
         self.health_score = 0
         self._thread = None
+        self.alert_log = []
+        self._prev_fired = set()
 
         # Layout
         outer = QVBoxLayout()
@@ -442,6 +560,8 @@ class AnalyticsWidget(QWidget):
         self.predictions_count = 0
         self.session_issues_count = 0
         self.current_issues = []
+        self.alert_log = []
+        self._prev_fired = set()
         self.session_timer.start()
         self.export_btn.setEnabled(True)
         self.toggle_btn.setText("Stop Analytics")
@@ -557,23 +677,33 @@ class AnalyticsWidget(QWidget):
         if not self.running:
             return
 
+        fired_issues = [i for i in issues if i["fired"]]
         self.predictions_count += 1
-        self.session_issues_count += len(issues)
+        self.session_issues_count += len(fired_issues)
         self.current_issues = list(issues)
+
+        now = datetime.now()
+        current_fired_titles = {i["title"] for i in fired_issues}
+        for issue in fired_issues:
+            if issue["title"] not in self._prev_fired:
+                self.alert_log.append({
+                    "time":        now,
+                    "title":       issue["title"],
+                    "component":   issue["component"],
+                    "probability": issue["probability"],
+                })
+        self._prev_fired = current_fired_titles
         self.sess_preds_val.setText(f"{self.predictions_count:,}")
         self.sess_flags_val.setText(f"{self.session_issues_count:,}")
-        self.export_btn.setEnabled(bool(issues))
+        self.export_btn.setEnabled(True)
 
         overall = max(component_risks.values(), default=0.0)
         self.health_score = int((1.0 - overall) * 100)
         self.set_kpi(self.card_health, str(self.health_score), "/ 100")
 
         self.clear_issues()
-        if not issues:
-            self.no_issues_label.setVisible(True)
-            return
-
         self.no_issues_label.setVisible(False)
+
         for issue in sorted(issues, key=lambda x: x["probability"], reverse=True):
             card = QFrame()
             card.setObjectName("sectionFrame")
@@ -588,13 +718,13 @@ class AnalyticsWidget(QWidget):
             badge = QLabel(issue["component"])
             badge.setFixedWidth(55)
             badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            badge.setObjectName("issueBadge")
+            badge.setObjectName("issueBadge" if issue["fired"] else "issueBadgeMuted")
 
             name_lbl = QLabel(f"<b>{issue['title']}</b>")
 
-            prob_lbl = QLabel(f"{issue['probability']:.0%}")
+            prob_lbl = QLabel(f"Confidence: {issue['probability']:.0%}")
             prob_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            prob_lbl.setObjectName("issueProb")
+            prob_lbl.setObjectName("issueProb" if issue["fired"] else "issueProbMuted")
 
             title_row.addWidget(badge)
             title_row.addWidget(name_lbl, stretch=1)
@@ -606,5 +736,11 @@ class AnalyticsWidget(QWidget):
 
             card_layout.addLayout(title_row)
             card_layout.addWidget(desc_lbl)
+
+            if issue["fired"]:
+                fix_lbl = QLabel(f"Fix: {issue['fix']}")
+                fix_lbl.setWordWrap(True)
+                fix_lbl.setObjectName("issueFix")
+                card_layout.addWidget(fix_lbl)
 
             self.issues_layout.addWidget(card)
