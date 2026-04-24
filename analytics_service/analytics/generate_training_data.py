@@ -125,9 +125,10 @@ def scenario_excessive_swap():
 
 
 def scenario_disk_full():
+    base = random.uniform(91.0, 99.95)
     def fn(i):
         return {
-            "disk_usage_percent": jitter(93.0, 0.02),
+            "disk_usage_percent": jitter(base, 0.02),
         }
     return fn
 

@@ -262,12 +262,12 @@ QLabel#cardHeader {
 
 QLabel#sessionLabel {
     color: #6b7280;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 QLabel#sessionValue {
     color: #222831;
-    font-size: 13px;
+    font-size: 22px;
     font-weight: bold;
 }
 
@@ -289,15 +289,36 @@ QLabel#issueBadge {
     padding: 2px 4px;
 }
 
+QLabel#issueBadgeMuted {
+    background-color: #e5e7eb;
+    color: #6b7280;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 4px;
+}
+
 QLabel#issueProb {
     font-size: 13px;
     font-weight: bold;
     color: ACCENT_COLOUR;
 }
 
+QLabel#issueProbMuted {
+    font-size: 13px;
+    font-weight: bold;
+    color: #9ca3af;
+}
+
 QLabel#issueDesc {
     font-size: 12px;
     color: #6b7280;
+}
+
+QLabel#issueFix {
+    font-size: 12px;
+    color: #393E46;
+    font-style: italic;
 }
 
 QLabel#noIssuesLabel {

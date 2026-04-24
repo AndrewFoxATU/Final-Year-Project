@@ -26,7 +26,7 @@ from storage_service.storage.main import StorageManager
 # Import the Live System Monitoring panel
 from dashboard_service.gui.live_monitor import LiveSystemMonitor
 # Import the Analytics panel
-from dashboard_service.gui.analytics_view import AnalyticsWidget
+from dashboard_service.gui.analytics_view import AnalyticsWidget, AlertsDialog
 # Import settings manager
 from dashboard_service.gui.settings_manager import load_settings, save_settings
 
@@ -136,6 +136,7 @@ class DashboardWindow(QMainWindow):
 
         # Alerts & Settings buttons
         self.alerts_button = QPushButton("Alerts")
+        self.alerts_button.clicked.connect(self.open_alerts_dialog)
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.open_settings)
 
@@ -225,6 +226,13 @@ class DashboardWindow(QMainWindow):
             button.setProperty("active", button == active_button)
             button.style().unpolish(button)
             button.style().polish(button)
+
+    # -----------------------------
+    # Open alerts dialog
+    # -----------------------------
+    def open_alerts_dialog(self):
+        dlg = AlertsDialog(self.analytics_widget.alert_log, parent=self)
+        dlg.exec()
 
     # -----------------------------
     # Open settings
