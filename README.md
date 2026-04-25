@@ -1,7 +1,6 @@
 <div align="center">
 
 # Smart System Performance Dashboard
-
 **Real-time hardware monitoring with ML-powered diagnostics**
 
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
@@ -10,7 +9,7 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?style=for-the-badge&logo=scikit-learn&logoColor=white)
 ![Windows](https://img.shields.io/badge/Windows-Only-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 
-*Final Year Project — Andrew Fox, ATU*
+*Final Year Project -- Andrew Fox, ATU*
 
 </div>
 
@@ -18,27 +17,29 @@
 
 ## Overview
 
-A desktop application that collects live hardware telemetry (CPU, RAM, GPU, Disk), stores it persistently in a local SQLite database, and uses a pre-trained Random Forest classifier to detect hardware performance issues in real time — from the moment the app launches.
+A desktop application that collects live hardware telemetry (CPU, RAM, GPU, Disk), stores it persistently in a local SQLite database, and uses a pre-trained Random Forest classifier to detect hardware performance issues in real time. All processing runs entirely on the user's machine with no cloud dependency.
 
 ---
 
 ## Features
 
-| | Feature | Description |
-|---|---|---|
-| 📊 | **Live Monitoring** | Real-time graphs for CPU, RAM, GPU, and Disk with hover labels |
-| 💾 | **Persistent Telemetry** | Every metric stored to SQLite every second via a non-blocking background thread |
-| 🤖 | **ML Diagnostics** | Pre-trained Random Forest detects 12 hardware issue types instantly on launch |
-| 🎨 | **Dark Theme UI** | Custom QSS dark theme with configurable accent colour |
-| ⚙️ | **Settings** | Graph refresh rate and accent colour, persisted across sessions |
+| Feature | Description |
+|---|---|
+| **Live Monitoring** | Real-time graphs for CPU, RAM, GPU, and Disk with hover labels |
+| **Persistent Telemetry** | Every metric stored to SQLite every second via a background thread |
+| **ML Diagnostics** | Pre-trained Random Forest detects 12 hardware issue types, with plain-language descriptions and fix suggestions |
+| **Health Score** | Continuous 0-100 score derived from a severity-weighted, confidence-scaled penalty formula across all active fault labels |
+| **Alerts Log** | Persistent log of all detected issues across the session, viewable via the Alerts button |
+| **Export DB** | Full telemetry database exportable to CSV with host info, session metadata, and per-second sample data |
+| **Settings** | Graph refresh rate and accent colour, persisted across sessions |
 
 ---
 
 ## Requirements
 
-- **Windows only** — uses `winreg` and `pywin32` for system information
+- **Windows only** -- uses `pywin32` for accurate CPU frequency via Windows PDH counters
 - **Python 3.11+**
-- **NVIDIA GPU optional** — GPU monitoring uses NVML; the app runs fine without one
+- **NVIDIA GPU optional** -- GPU monitoring uses NVML; the app runs fine without one
 
 ---
 
@@ -79,37 +80,52 @@ python -m dashboard_service.gui.main
 
 ```
 final-year-project/
-│
-├── collector_service/
-│   └── collector/
-│       ├── cpu_collector.py          # CPU usage and frequency
-│       ├── ram_collector.py          # RAM and swap usage
-│       ├── gpu_collector.py          # NVIDIA GPU metrics via NVML
-│       ├── disk_collector.py         # Disk IO speeds, latency, partition usage
-│       └── system_info_collector.py  # One-time startup: hostname, OS, CPU/GPU model
-│
-├── storage_service/
-│   └── storage/
-│       ├── schema.py                 # SQLite schema and init_db()
-│       └── main.py                   # StorageManager — persists all telemetry
-│
-├── analytics_service/
-│   └── analytics/
-│       ├── features.py               # Feature matrix builder with rolling stats
-│       ├── labels.py                 # Rule-based labeller for 12 issue types
-│       └── model.py                  # Random Forest wrapper (MultiOutputClassifier)
-│
-├── dashboard_service/
-│   ├── assets/
-│   │   ├── fonts/                    # Inter font
-│   │   └── styles/style.qss          # Global dark theme QSS
-│   └── gui/
-│       ├── main.py                   # Main window, StorageThread, app entry point
-│       ├── live_monitor.py           # Live graphs and metric labels
-│       ├── analytics_view.py         # Analytics tab UI
-│       └── settings_manager.py       # Load/save settings JSON
-│
-├── telemetry.db                      # SQLite database (auto-created on first run)
+|
+|-- collector_service/
+|   |-- collector/
+|   |   |-- cpu_collector.py          # CPU usage and frequency (psutil + pywin32 PDH)
+|   |   |-- ram_collector.py          # RAM and swap usage
+|   |   |-- gpu_collector.py          # NVIDIA GPU metrics via pynvml
+|   |   |-- disk_collector.py         # Disk I/O speeds, latency, partition usage
+|   |   └── system_info_collector.py  # One-time startup: hostname, OS, CPU/GPU model
+|   └── tests/
+|       └── test_collectors.py
+|
+|-- storage_service/
+|   |-- storage/
+|   |   |-- schema.py                 # SQLite schema (10 tables) and init_db()
+|   |   └── main.py                   # StorageManager -- persists all telemetry, WAL mode
+|   └── tests/
+|       └── test_storage.py
+|
+|-- analytics_service/
+|   |-- analytics/
+|   |   |-- features.py               # 35-feature vector builder with rolling statistics
+|   |   |-- labels.py                 # Rule-based labeller for 12 fault types and severity ratings
+|   |   |-- model.py                  # Random Forest wrapper -- inference and health score
+|   |   |-- train.py                  # Offline training script -- produces model.pkl
+|   |   |-- generate_training_data.py # Synthetic dataset generator (12 scenario builders)
+|   |   └── collect_real_data.py      # Appends real telemetry from .db files to training CSV
+|   |-- tests/
+|   |   |-- test_labels.py
+|   |   └── test_model.py
+|   └── visualisations/               # 10 post-training analysis scripts (not used at runtime)
+|
+|-- dashboard_service/
+|   |-- assets/
+|   |   |-- fonts/                    # Inter font
+|   |   └── styles/style.qss          # Global QSS stylesheet with accent colour token
+|   └── gui/
+|       |-- main.py                   # Main window, StorageThread, app entry point
+|       |-- live_monitor.py           # Live graphs and metric labels
+|       |-- analytics_view.py         # Analytics tab -- AnalyticsThread, issue cards, health score
+|       └── settings_manager.py       # Load/save settings JSON
+|
+|-- analytics_service/data/
+|   |-- model.pkl                     # Trained model (loaded at startup, not retrained at runtime)
+|   └── training_data.csv             # 20,872-row labelled dataset (synthetic + real)
+|
+|-- telemetry.db                      # SQLite database (auto-created on first run)
 └── requirements.txt
 ```
 
@@ -119,58 +135,68 @@ final-year-project/
 
 ```
 App Start
-  │
-  ├── StorageThread  (QThread — background)
-  │     └── Every 1 second:
-  │           ├── CPUCollector.get_cpu_data()
-  │           ├── RAMCollector.get_ram_data()
-  │           ├── GPUCollector.get_gpu_data()    ← gracefully skipped if no NVIDIA GPU
-  │           ├── DiskCollector.get_disk_data()
-  │           └── StorageManager.insert_sample() ──► telemetry.db
-  │
-  └── UI  (main thread — never blocked by storage)
-        ├── LiveSystemMonitor  ──► real-time graphs  (own QTimer)
-        └── AnalyticsWidget    ──► reads DB every 5s, runs model, shows risk scores
+  |
+  |-- StorageThread  (QThread -- background)
+  |     └── Every 1 second:
+  |           |-- CPUCollector.get_cpu_data()
+  |           |-- RAMCollector.get_ram_data()
+  |           |-- GPUCollector.get_gpu_data()    <- gracefully skipped if no NVIDIA GPU
+  |           |-- DiskCollector.get_disk_data()
+  |           └── StorageManager.insert_sample() --> telemetry.db
+  |
+  |-- AnalyticsThread  (QThread -- background)
+  |     └── Waits for 200 samples, then every 5 seconds:
+  |           |-- Reads last 10 samples from telemetry.db
+  |           |-- FeatureExtractor.compute()  --> 35-feature vector
+  |           |-- PerformanceModel.predict()  --> issues + health score
+  |           └── Emits results to AnalyticsWidget (UI thread)
+  |
+  └── UI  (main thread -- never blocked)
+        |-- LiveSystemMonitor  --> real-time graphs  (configurable QTimer)
+        └── AnalyticsWidget    --> health score, issue cards, alerts log
 ```
 
 ---
 
 ## ML Approach
 
-The analytics module ships with a **pre-trained Random Forest** (`MultiOutputClassifier` wrapping `RandomForestClassifier`), trained offline by the developer on a controlled synthetic dataset. Predictions are available from the very first launch — no warm-up period required.
+The analytics module ships with a pre-trained Random Forest (`MultiOutputClassifier` wrapping `RandomForestClassifier`), trained offline on a labelled dataset of 20,872 samples. Once 200 samples have been collected the application begins running inference every 5 seconds with no further setup required.
 
 ### Training Pipeline
 
 ```
-Synthetic Dataset  ──►  Rule-Based Label Engine  ──►  RandomForestClassifier  ──►  model.pkl
- (developer-built)        (12 issue labels)             (100 trees, balanced)      (bundled)
+Synthetic Scenarios  -->  Rule-Based Label Engine  -->  RandomForestClassifier  -->  model.pkl
+Real Telemetry (x3)       (12 fault labels, 1-5         (200 trees, balanced,       (bundled)
+                           severity ratings)              MultiOutputClassifier)
 ```
 
-1. Developer generates synthetic feature vectors covering healthy and all issue states
-2. Rule engine programmatically labels each sample (weak supervision)
-3. Model trained with `class_weight='balanced'` and saved as `model.pkl`
-4. `model.pkl` bundled and loaded at app startup
+1. `generate_training_data.py` builds 12 scenario builders, one per fault type, each generating 500-800 synthetic windows with +/-12% metric jitter
+2. `collect_real_data.py` appends real telemetry collected from 3 physical machines (Windows 10 and Windows 11, with and without a discrete GPU)
+3. The rule-based `LabelEngine` labels every window across both sources (weak supervision)
+4. Model trained with `class_weight='balanced'` and serialised to `model.pkl` alongside the feature column names and label names
+5. Total training set: 20,872 rows -- average F1 score of 0.98 across all 12 labels
 
-### Prediction Pipeline *(every 5 seconds)*
+### Prediction Pipeline (every 5 seconds, after 200-sample warmup)
 
 ```
-telemetry.db  ──►  Feature Matrix  ──►  100 Trees Vote  ──►  Component Risk Scores  ──►  UI
-                   (+ rolling stats)     (probability)         CPU / RAM / GPU / Disk
+telemetry.db  -->  10-sample window  -->  35 features  -->  12-label prediction  -->  UI
+                   (last 10 seconds)      (point-in-time     (binary + confidence     health score
+                                          + rolling stats)    probabilities)           issue cards
 ```
-
-**Personalisation (optional):** Accumulated live telemetry can periodically retrain the model in the background to improve accuracy for the specific machine.
 
 ### Detected Issue Types
 
 | Component | Issues Detected |
 |:---:|---|
-| **CPU** | Thermal throttling · Bottleneck · Sustained high load |
-| **RAM** | Memory pressure · Memory leak · Excessive swap |
-| **Disk** | Disk full · IO bottleneck · High latency |
-| **GPU** | Overheating · Power throttling · VRAM pressure |
+| **CPU** | Thermal throttling, Bottleneck, Sustained high load |
+| **RAM** | Memory pressure, Memory leak, Excessive swap |
+| **Disk** | Disk full, I/O bottleneck, High latency |
+| **GPU** | Overheating, Power throttling, VRAM pressure |
+
+Each detected issue includes a plain-language description of the problem and a suggested fix, displayed directly in the Analytics panel.
 
 ---
 
 <div align="center">
-<sub>Built with PyQt6 · scikit-learn · psutil · SQLite</sub>
+<sub>Built with PyQt6 · scikit-learn · psutil · pynvml · SQLite</sub>
 </div>
