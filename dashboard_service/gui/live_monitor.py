@@ -40,7 +40,7 @@ class LiveSystemMonitor(QWidget):
 
         # Sections: CPU, GPU, RAM, Storage
         self.sections = {
-            "CPU": {"fields": ["Usage", "Clock", "Temp"]},
+            "CPU": {"fields": ["Usage", "Clock"]},
             "GPU": {"fields": ["Usage", "VRAM", "Temp"]},
             "RAM": {"fields": ["Usage", "Used", "Total"]},
             "Storage": {"fields": ["Device", "Usage", "Total", "Used", "Read", "Write"]}
@@ -93,7 +93,6 @@ class LiveSystemMonitor(QWidget):
         labels = cpu_frame.labels
         labels["Usage"].setText(f"{data['cpu_percent_total']:.1f}%")
         labels["Clock"].setText(f"{data['freq_current_mhz']:.1f} MHz" if data['freq_current_mhz'] else "N/A")
-        labels["Temp"].setText("N/A")
 
         cpu_frame.data.append(data['cpu_percent_total'])
         cpu_frame.timestamps.append(datetime.now().strftime("%H:%M:%S"))

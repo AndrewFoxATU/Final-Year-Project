@@ -93,7 +93,7 @@ _SAMPLE_QUERY = """
 class AnalyticsThread(QThread):
 
     status_signal     = pyqtSignal(str, int)   # (status_text, sample_count)
-    prediction_signal = pyqtSignal(list, int)  # (issues list, health_score)
+    prediction_signal = pyqtSignal(list, int, object)  # (issues list, health_score, metrics_snapshot)
 
     MIN_SAMPLES = 200
     INTERVAL_MS = 5000
@@ -154,7 +154,24 @@ class AnalyticsThread(QThread):
                         "fired":       label in fired_set,
                     })
 
-                self.prediction_signal.emit(issues, result["health_score"])
+                def _avg(key):
+                    vals = [s[key] for s in samples if s.get(key) is not None]
+                    return sum(vals) / len(vals) if vals else None
+
+                snapshot = {
+                    "cpu_percent":    _avg("cpu_percent_total"),
+                    "cpu_mhz":        _avg("freq_current_mhz"),
+                    "ram_percent":    _avg("ram_usage_percent"),
+                    "swap_percent":   _avg("swap_usage_percent"),
+                    "gpu_util":       _avg("gpu_util_percent"),
+                    "gpu_mem":        _avg("gpu_mem_util_percent"),
+                    "gpu_temp":       _avg("gpu_temp_c"),
+                    "disk_read_lat":  _avg("avg_read_latency_ms"),
+                    "disk_write_lat": _avg("avg_write_latency_ms"),
+                    "disk_usage":     _avg("disk_usage_percent"),
+                }
+
+                self.prediction_signal.emit(issues, result["health_score"], snapshot)
 
             except Exception:
                 pass
@@ -250,13 +267,15 @@ class AlertsDialog(QDialog):
 # -----------------------------
 class ExportData(QDialog):
 
-    def __init__(self, session_summary, current_issues, parent=None):
+    def __init__(self, session_summary, current_issues, alert_log, metrics_log, parent=None):
         super().__init__(parent)
         self.session_summary = session_summary
         self.current_issues = current_issues
+        self.alert_log = alert_log
+        self.metrics_log = metrics_log
 
-        self.setWindowTitle("Export Data")
-        self.setFixedWidth(380)
+        self.setWindowTitle("Export Analytics Data")
+        self.setFixedWidth(400)
         self.setModal(True)
 
         layout = QVBoxLayout()
@@ -273,11 +292,7 @@ class ExportData(QDialog):
         self.chk_issues.setChecked(bool(current_issues))
         self.chk_issues.setEnabled(bool(current_issues))
 
-        self.chk_metrics = QCheckBox("Collected Metrics  (coming soon)")
-        self.chk_metrics.setChecked(False)
-        self.chk_metrics.setEnabled(False)
-
-        for chk in (self.chk_summary, self.chk_issues, self.chk_metrics):
+        for chk in (self.chk_summary, self.chk_issues):
             layout.addWidget(chk)
 
         layout.addSpacing(4)
@@ -299,15 +314,16 @@ class ExportData(QDialog):
         layout.addLayout(btn_row)
 
     def do_export(self):
-        if not self.chk_summary.isChecked() and not self.chk_issues.isChecked():
+        if not any([self.chk_summary.isChecked(), self.chk_issues.isChecked()]):
             QMessageBox.warning(self, "Nothing selected",
                                 "Please select at least one section to export.")
             return
 
+        export_time = datetime.now()
         filename, _ = QFileDialog.getSaveFileName(
             self,
             "Save Export",
-            f"analytics_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            f"analytics_export_{export_time.strftime('%Y-%m-%d_%H-%M-%S')}.csv",
             "CSV Files (*.csv);;All Files (*)"
         )
         if not filename:
@@ -318,13 +334,28 @@ class ExportData(QDialog):
 
             if self.chk_summary.isChecked():
                 writer.writerow(["=== Session Summary ==="])
-                writer.writerow(["Exported at", datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                writer.writerow(["Exported at", export_time.strftime("%Y-%m-%d %H:%M:%S")])
                 for key, value in self.session_summary.items():
                     writer.writerow([key, value])
+
+                if self.alert_log:
+                    writer.writerow([])
+                    writer.writerow(["--- Issues Detected During Session ---"])
+                    writer.writerow(["Time Detected", "Component", "Issue", "Probability", "Description", "Fix"])
+                    for entry in self.alert_log:
+                        writer.writerow([
+                            entry["time"].strftime("%Y-%m-%d %H:%M:%S"),
+                            entry["component"],
+                            entry["title"],
+                            f"{entry['probability']:.0%}",
+                            entry["description"],
+                            entry["fix"],
+                        ])
+
                 writer.writerow([])
 
             if self.chk_issues.isChecked() and self.current_issues:
-                writer.writerow(["=== Detected Issues ==="])
+                writer.writerow(["=== Detected Issues (Current State) ==="])
                 writer.writerow(["Component", "Issue", "Probability", "Description"])
                 for issue in sorted(self.current_issues, key=lambda x: x["probability"], reverse=True):
                     writer.writerow([
@@ -361,6 +392,7 @@ class AnalyticsWidget(QWidget):
         self.health_score = 0
         self._thread = None
         self.alert_log = []
+        self.metrics_log = []
         self._prev_fired = set()
 
         # Layout
@@ -391,8 +423,8 @@ class AnalyticsWidget(QWidget):
         title = QLabel("<b>ML Performance Analytics</b>")
         title.setObjectName("analyticsTitle")
 
-        self.export_btn = QPushButton("Export Data")
-        self.export_btn.setFixedSize(120, 36)
+        self.export_btn = QPushButton("Export Analytics Data")
+        self.export_btn.setFixedSize(180, 36)
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self.open_export_dialog)
 
@@ -413,7 +445,7 @@ class AnalyticsWidget(QWidget):
     def create_kpi_card(self, title):
         frame = QFrame()
         frame.setObjectName("sectionFrame")
-        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(14, 10, 14, 10)
@@ -439,6 +471,7 @@ class AnalyticsWidget(QWidget):
 
     def create_kpi_row(self):
         row = QWidget()
+        row.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         layout = QHBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
@@ -462,7 +495,7 @@ class AnalyticsWidget(QWidget):
     def create_session_bar(self):
         frame = QFrame()
         frame.setObjectName("sectionFrame")
-        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         layout = QHBoxLayout()
         layout.setContentsMargins(16, 10, 16, 10)
@@ -558,6 +591,7 @@ class AnalyticsWidget(QWidget):
         self.session_issues_count = 0
         self.current_issues = []
         self.alert_log = []
+        self.metrics_log = []
         self._prev_fired = set()
         self.session_timer.start()
         self.export_btn.setEnabled(True)
@@ -569,7 +603,7 @@ class AnalyticsWidget(QWidget):
 
         self._thread = AnalyticsThread(self)
         self._thread.status_signal.connect(self.update_status)
-        self._thread.prediction_signal.connect(self.update_predictions)
+        self._thread.prediction_signal.connect(self.update_predictions)  # (issues, health_score, snapshot)
         self._thread.start()
 
     def stop(self):
@@ -640,7 +674,7 @@ class AnalyticsWidget(QWidget):
             "System health score":    f"{self.health_score} / 100",
         }
 
-        dlg = ExportData(summary, self.current_issues, parent=self)
+        dlg = ExportData(summary, self.current_issues, self.alert_log, self.metrics_log, parent=self)
         dlg.exec()
 
     # -----------------------------
@@ -670,7 +704,7 @@ class AnalyticsWidget(QWidget):
         else:
             self.set_kpi(self.card_status, status_text, f"{sample_count} / {self.MIN_SAMPLES_REQUIRED} samples")
 
-    def update_predictions(self, issues, health_score):
+    def update_predictions(self, issues, health_score, snapshot):
         if not self.running:
             return
 
@@ -688,8 +722,12 @@ class AnalyticsWidget(QWidget):
                     "title":       issue["title"],
                     "component":   issue["component"],
                     "probability": issue["probability"],
+                    "description": issue["description"],
+                    "fix":         issue["fix"],
                 })
         self._prev_fired = current_fired_titles
+
+        self.metrics_log.append({"time": now, **snapshot})
         self.sess_preds_val.setText(f"{self.predictions_count:,}")
         self.sess_flags_val.setText(f"{self.session_issues_count:,}")
         self.export_btn.setEnabled(True)

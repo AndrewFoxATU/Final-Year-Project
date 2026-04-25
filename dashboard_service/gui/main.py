@@ -4,13 +4,15 @@
 # -----------------------------
 # Imports
 # -----------------------------
+import csv
+import sqlite3
 import sys
 import time
 from datetime import datetime
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFrame, QGridLayout, QSizePolicy, QDialog,
-    QComboBox, QSpinBox, QColorDialog, QLineEdit, QMessageBox
+    QComboBox, QSpinBox, QColorDialog, QLineEdit, QMessageBox, QFileDialog
 )
 from PyQt6.QtCore import Qt, QThread
 from PyQt6.QtGui import QFontDatabase, QFont, QCursor, QColor
@@ -134,15 +136,22 @@ class DashboardWindow(QMainWindow):
         title_layout.addWidget(subtitle)
         self.top_layout.addWidget(title_block, stretch=1)
 
-        # Alerts & Settings buttons
+        # Alerts, Export DB & Settings buttons
         self.alerts_button = QPushButton("Alerts")
         self.alerts_button.clicked.connect(self.open_alerts_dialog)
+        self.export_db_button = QPushButton("Export DB")
+        self.export_db_button.clicked.connect(self.export_db_to_csv)
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.open_settings)
 
         for button in [self.alerts_button, self.settings_button]:
             button.setObjectName("topButton")
             button.setFixedSize(80, 36)
+
+        self.export_db_button.setObjectName("topButton")
+        self.export_db_button.setFixedSize(105, 36)
+
+        for button in [self.alerts_button, self.export_db_button, self.settings_button]:
             self.top_layout.addWidget(button)
 
     # -----------------------------
@@ -233,6 +242,118 @@ class DashboardWindow(QMainWindow):
     def open_alerts_dialog(self):
         dlg = AlertsDialog(self.analytics_widget.alert_log, parent=self)
         dlg.exec()
+
+    # -----------------------------
+    # Export full telemetry DB to CSV
+    # -----------------------------
+    def export_db_to_csv(self):
+        export_time = datetime.now()
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Telemetry Database",
+            f"telemetry_export_{export_time.strftime('%Y-%m-%d_%H-%M-%S')}.csv",
+            "CSV Files (*.csv);;All Files (*)",
+        )
+        if not filename:
+            return
+
+        try:
+            conn = sqlite3.connect("telemetry.db")
+            conn.row_factory = sqlite3.Row
+
+            with open(filename, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+
+                # --- Host Info ---
+                writer.writerow(["--- Host Info ---"])
+                writer.writerow(["Exported at", export_time.strftime("%Y-%m-%d %H:%M:%S")])
+                host = conn.execute("SELECT * FROM host LIMIT 1").fetchone()
+                if host:
+                    writer.writerow(["Hostname",         host["hostname"]])
+                    writer.writerow(["OS",               f"{host['os_name']} {host['os_version']}"])
+                    writer.writerow(["Machine",          host["machine"]])
+                    writer.writerow(["CPU Model",        host["cpu_model"]])
+                    writer.writerow(["CPU Cores",        host["cpu_core_count"]])
+                    writer.writerow(["CPU Threads",      host["cpu_thread_count"]])
+                    writer.writerow(["CPU Max MHz",      host["cpu_max_mhz"]])
+                    writer.writerow(["Total RAM (GB)",   host["total_ram_gb"]])
+                    writer.writerow(["GPU Detected",     "Yes" if host["gpu_detected"] else "No"])
+                writer.writerow([])
+
+                # --- Sessions ---
+                writer.writerow(["--- Sessions ---"])
+                writer.writerow(["Session ID", "Started At", "Sample Interval (ms)", "First Sample ID"])
+                sessions = conn.execute("SELECT * FROM session ORDER BY session_id").fetchall()
+                for s in sessions:
+                    first_sample = conn.execute(
+                        "SELECT MIN(sample_id) FROM sample WHERE session_id = ?", (s["session_id"],)
+                    ).fetchone()[0]
+                    writer.writerow([
+                        s["session_id"],
+                        s["started_at_iso"],
+                        s["sample_interval_ms"],
+                        first_sample if first_sample is not None else "—",
+                    ])
+                writer.writerow([])
+
+                # --- Sample Data ---
+                writer.writerow(["--- Sample Data ---"])
+                writer.writerow([
+                    "Timestamp", "Sample ID", "Session ID",
+                    "CPU %", "CPU MHz",
+                    "RAM %", "Swap %",
+                    "GPU Util %", "GPU Mem %", "GPU Mem Used (MB)",
+                    "GPU Temp (C)", "GPU Clock (MHz)", "GPU Power (W)", "GPU Power Limit (W)",
+                    "Disk Read (B/s)", "Disk Write (B/s)",
+                    "Disk Read Latency (ms)", "Disk Write Latency (ms)",
+                    "Disk Usage %",
+                ])
+
+                sample_rows = conn.execute("""
+                    SELECT
+                        s.ts_iso, s.sample_id, s.session_id,
+                        c.cpu_percent_total, c.freq_current_mhz,
+                        r.ram_usage_percent, r.swap_usage_percent,
+                        g.gpu_util_percent, g.gpu_mem_util_percent, g.gpu_mem_used_mb,
+                        g.gpu_temp_c, g.gpu_core_clock_mhz,
+                        g.gpu_power_usage_w, g.gpu_power_limit_w,
+                        d.read_speed_bytes, d.write_speed_bytes,
+                        d.avg_read_latency_ms, d.avg_write_latency_ms,
+                        MAX(dp.usage_percent) AS disk_usage_percent
+                    FROM sample s
+                    LEFT JOIN cpu_sample            c  ON c.sample_id  = s.sample_id
+                    LEFT JOIN ram_sample            r  ON r.sample_id  = s.sample_id
+                    LEFT JOIN gpu_sample            g  ON g.sample_id  = s.sample_id AND g.gpu_id = 0
+                    LEFT JOIN disk_io_sample        d  ON d.sample_id  = s.sample_id
+                    LEFT JOIN disk_partition_sample dp ON dp.sample_id = s.sample_id
+                    GROUP BY s.sample_id
+                    ORDER BY s.session_id, s.sample_id
+                """).fetchall()
+
+                def fmt(v):
+                    if v is None:
+                        return "N/A"
+                    return f"{v:.2f}" if isinstance(v, float) else v
+
+                for row in sample_rows:
+                    writer.writerow([
+                        row["ts_iso"], row["sample_id"], row["session_id"],
+                        fmt(row["cpu_percent_total"]), fmt(row["freq_current_mhz"]),
+                        fmt(row["ram_usage_percent"]), fmt(row["swap_usage_percent"]),
+                        fmt(row["gpu_util_percent"]), fmt(row["gpu_mem_util_percent"]),
+                        fmt(row["gpu_mem_used_mb"]),
+                        fmt(row["gpu_temp_c"]), fmt(row["gpu_core_clock_mhz"]),
+                        fmt(row["gpu_power_usage_w"]), fmt(row["gpu_power_limit_w"]),
+                        fmt(row["read_speed_bytes"]), fmt(row["write_speed_bytes"]),
+                        fmt(row["avg_read_latency_ms"]), fmt(row["avg_write_latency_ms"]),
+                        fmt(row["disk_usage_percent"]),
+                    ])
+
+            conn.close()
+            QMessageBox.information(self, "Export Complete",
+                                    f"Database exported successfully to:\n{filename}")
+        except Exception as e:
+            QMessageBox.critical(self, "Export Failed", f"Could not export database:\n{e}")
 
     # -----------------------------
     # Open settings
