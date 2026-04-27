@@ -3,7 +3,7 @@
 # Run with: python -m pytest analytics_service/tests/test_model.py -v
 
 from analytics_service.analytics.features import FeatureExtractor, WINDOW_SIZE
-from analytics_service.analytics.labels import LABEL_NAMES, LABEL_COMPONENTS
+from analytics_service.analytics.labels import LABEL_NAMES, LABEL_COMPONENTS, LabelEngine
 from analytics_service.analytics.model import PerformanceModel
 
 
@@ -181,8 +181,7 @@ class TestIssueDetection:
         def fn(i):
             return {"gpu_mem_util_percent": 93.0}
         features = FeatureExtractor.compute(make_window(fn))
-        result = MODEL.predict(features)
-        assert "gpu_vram_pressure" in result["issues"]
+        assert LabelEngine.apply(features)["gpu_vram_pressure"]
 
 
 # -----------------------------
