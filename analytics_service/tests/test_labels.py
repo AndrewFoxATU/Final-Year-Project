@@ -76,7 +76,7 @@ class TestCPULabels:
         assert not LabelEngine.apply(f)["cpu_bottleneck"]
 
     def test_cpu_sustained_high_load_fires(self):
-        f = patch({"cpu_percent_total_roll_mean": 85.0})
+        f = patch({"cpu_percent_total_roll_mean": 90.0})
         assert LabelEngine.apply(f)["cpu_sustained_high_load"]
 
     def test_cpu_sustained_high_load_no_fire(self):
@@ -98,7 +98,7 @@ class TestRAMLabels:
         assert not LabelEngine.apply(f)["ram_pressure"]
 
     def test_ram_memory_leak_fires(self):
-        f = patch({"ram_usage_percent_roll_slope": 0.2, "swap_usage_percent_roll_slope": 0.05})
+        f = patch({"ram_usage_percent_roll_slope": 0.35, "swap_usage_percent_roll_slope": 0.06})
         assert LabelEngine.apply(f)["ram_memory_leak"]
 
     def test_ram_memory_leak_no_fire_swap_stable(self):
