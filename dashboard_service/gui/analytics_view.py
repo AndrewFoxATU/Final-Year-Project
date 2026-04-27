@@ -95,7 +95,7 @@ class AnalyticsThread(QThread):
     status_signal     = pyqtSignal(str, int)   # (status_text, sample_count)
     prediction_signal = pyqtSignal(list, int, object)  # (issues list, health_score, metrics_snapshot)
 
-    MIN_SAMPLES = 200
+    MIN_SAMPLES = 100
     INTERVAL_MS = 5000
 
     def run(self):
@@ -374,7 +374,7 @@ class ExportData(QDialog):
 # -----------------------------
 class AnalyticsWidget(QWidget):
 
-    MIN_SAMPLES_REQUIRED = 200
+    MIN_SAMPLES_REQUIRED = 100
 
     def __init__(self, parent=None):
         super().__init__(parent)
