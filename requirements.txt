@@ -8,7 +8,7 @@ pyqtgraph==0.13.4 # pyqtgraph offers smooth real-time graph plotting.
 
 # === System Monitoring ===
 psutil==6.0.0 # psutil gathers system stats: CPU, memory, disk, network, etc.
-pywin32==307 # pywin32 provides Windows-specific system calls and process control.
+pywin32==311 # pywin32 provides Windows-specific system calls and process control.
 # GPU via NVML
 nvidia-ml-py==12.560.30
 
@@ -18,7 +18,7 @@ loguru==0.7.2 # loguru provides elegant, structured logging with rotation.
 
 
 # === Data Handling & ML ===
-numpy==2.1.2       # numpy for numeric calculations and array handling.
+numpy==2.3.3       # numpy for numeric calculations and array handling.
 pandas==3.0.2      # pandas for loading and manipulating training data CSV.
 scikit-learn==1.8.0 # scikit-learn provides the Random Forest classifier and evaluation tools.
 matplotlib==3.10.1  # matplotlib for visualising model performance and training data.
